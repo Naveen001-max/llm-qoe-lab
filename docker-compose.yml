@@ -1,0 +1,53 @@
+services:
+  netem:
+    build: .
+    container_name: llm-qoe-netem
+    command: ["python", "netem.py"]
+    cap_add:
+      - NET_ADMIN
+    environment:
+      # The first attached network is the shaped data plane (eth0).
+      # Control/status traffic uses a separate unshaped interface/network.
+      NETEM_INTERFACE: eth0
+      PROXY_PORT: 3128
+      NETEM_CONTROL_PORT: 8081
+    expose:
+      - "3128"
+      - "8081"
+    networks:
+      data:
+        aliases:
+          - netem-proxy
+      control:
+        aliases:
+          - netem-control
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: llm-qoe-app
+    command: ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GEMINI_FALLBACK_MODELS: ${GEMINI_FALLBACK_MODELS:-gemini-3.5-flash-lite,gemini-3.6-flash}
+      LLM_HTTP_PROXY: http://netem-proxy:3128
+      NETEM_CONTROL_URL: http://netem-control:8081
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - data
+      - control
+    depends_on:
+      - netem
+    restart: unless-stopped
+
+networks:
+  # Data plane: proxy and HTTPS traffic only; Linux tc/netem shapes this interface.
+  data:
+    driver: bridge
+  # Control plane: settings, status and polling; intentionally not shaped.
+  control:
+    driver: bridge
+    internal: true
