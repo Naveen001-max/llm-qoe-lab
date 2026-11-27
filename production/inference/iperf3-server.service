@@ -1,0 +1,15 @@
+[Unit]
+Description=LLM QoE Lab iPerf3 measurement server
+After=network-online.target
+Wants=network-online.target
+[Service]
+ExecStart=/usr/bin/iperf3 -s
+Restart=on-failure
+User=iperf3
+Group=iperf3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

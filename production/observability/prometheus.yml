@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+scrape_configs:
+  - job_name: qoe-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8080"]
+  - job_name: vllm-llm
+    scheme: https
+    tls_config:
+      ca_file: /run/secrets/inference-ca.crt
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["10.20.0.20:8001"]
+  - job_name: vllm-slm
+    scheme: https
+    tls_config:
+      ca_file: /run/secrets/inference-ca.crt
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["10.20.0.20:8002"]

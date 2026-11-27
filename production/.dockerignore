@@ -1,0 +1,14 @@
+.env*
+secrets/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/node_modules/
+**/dist/
+**/data/
+**/backups/
+**/*.jsonl
+**/*.pcap*
+**/*.dump*
+.git/

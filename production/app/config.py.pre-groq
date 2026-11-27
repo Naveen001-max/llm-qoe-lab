@@ -1,0 +1,88 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env.production", extra="ignore")
+    app_env: str = "development"
+    app_name: str = "LLM QoE Lab"
+    database_url: str = "postgresql+asyncpg://qoe_app:change-me@localhost:5432/llm_qoe"
+    redis_url: str = "redis://localhost:6379/0"
+    jwt_secret: str = "development-only-change-this-secret"
+    access_token_minutes: int = 30
+    cookie_secure: bool = False
+    cors_origins: str = "http://localhost:5173"
+    jsonl_dir: str = "./data/events"
+    llm_base_url: str = "http://localhost:8001/v1"
+    llm_model: str = "llama-3.1-8b-instruct"
+    llm_model_repository: str = ""
+    llm_model_revision: str = ""
+    llm_api_key: str = ""
+    llm_provider: str = "vllm"
+
+    slm_base_url: str = "http://localhost:8002/v1"
+    slm_model: str = "qwen2.5-1.5b-instruct"
+    slm_model_repository: str = ""
+    slm_model_revision: str = ""
+    slm_api_key: str = ""
+    slm_provider: str = "vllm"
+
+    llm_max_model_len: int = 8192
+    llm_max_num_seqs: int = 16
+    slm_max_model_len: int = 4096
+    slm_max_num_seqs: int = 32
+    vllm_version: str = "0.34.0"
+    vllm_image_digest: str = ""
+    temperature: float = 0.0
+    top_p: float = 1.0
+    inference_seed: int = 42
+    inference_ca_bundle: str = ""
+    gateway_control_url: str = ""
+    gateway_token: str = ""
+    gateway_ca_bundle: str = ""
+    require_gateway: bool = False
+    default_model: str = "llm"
+    max_prompt_chars: int = 20000
+    max_output_tokens: int = 2048
+    rate_limit_per_minute: int = 30
+    consent_version: str = "1.0.0"
+    admin_bootstrap_username: str = "admin"
+    admin_bootstrap_password: str = ""
+
+    @field_validator("llm_provider", "slm_provider")
+    @classmethod
+    def validate_inference_provider(cls, value: str) -> str:
+        allowed = {
+            "vllm",
+            "llama_cpp",
+            "groq",
+            "gemini",
+            "openai_compatible",
+        }
+
+        provider = value.strip().lower()
+
+        if provider not in allowed:
+            raise ValueError(
+                f"Unsupported inference provider: {provider}. "
+                f"Allowed providers: {', '.join(sorted(allowed))}"
+            )
+
+        return provider
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def require_secret_in_production(cls, v, info):
+        if info.data.get("app_env") == "production" and (len(v) < 48 or "change" in v.lower()):
+            raise ValueError("JWT_SECRET must be a unique secret of at least 48 characters in production")
+        return v
+
+    @property
+    def allowed_origins(self):
+        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+
+@lru_cache
+def get_settings():
+    return Settings()
+
+settings = get_settings()

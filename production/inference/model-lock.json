@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "status": "UNFROZEN_TEMPLATE",
+  "note": "Before pilot, resolve every revision placeholder to an immutable 40-character commit SHA and record the hardware/runtime details. Never use a floating main/latest reference in a research dataset.",
+  "runtime": {
+    "engine": "vLLM",
+    "container_tag": "vllm/vllm-openai:v0.34.0",
+    "streaming": true,
+    "immutable_image": "vllm/vllm-openai@sha256:REPLACE_WITH_64_HEX_DIGEST",
+    "cuda_major": "13.0"
+  },
+  "models": [
+    {
+      "arm": "llm",
+      "repository": "meta-llama/Llama-3.1-8B-Instruct",
+      "served_name": "llama-3.1-8b-instruct",
+      "revision": "REPLACE_WITH_40_CHAR_COMMIT_SHA",
+      "max_model_len": 8192,
+      "max_num_seqs": 16,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "seed": 42,
+      "max_output_tokens": 2048,
+      "prefix_caching": false,
+      "extensible_kv_cache": false,
+      "block_size": 16,
+      "dtype": "auto",
+      "gpu_memory_utilization": 0.9
+    },
+    {
+      "arm": "slm",
+      "repository": "Qwen/Qwen2.5-1.5B-Instruct",
+      "served_name": "qwen2.5-1.5b-instruct",
+      "revision": "REPLACE_WITH_40_CHAR_COMMIT_SHA",
+      "max_model_len": 4096,
+      "max_num_seqs": 32,
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "seed": 42,
+      "max_output_tokens": 2048,
+      "prefix_caching": false,
+      "extensible_kv_cache": false,
+      "block_size": 16,
+      "dtype": "auto",
+      "gpu_memory_utilization": 0.9
+    }
+  ],
+  "freeze_record_fields": [
+    "model_repository",
+    "commit_sha",
+    "tokenizer_revision",
+    "vllm_image_digest",
+    "cuda_version",
+    "driver_version",
+    "gpu_model",
+    "gpu_vram_gb",
+    "quantization",
+    "max_model_len",
+    "max_num_seqs",
+    "temperature",
+    "top_p",
+    "top_k",
+    "max_output_tokens",
+    "chat_template_sha256",
+    "launch_command",
+    "date_utc"
+  ]
+}

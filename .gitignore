@@ -1,0 +1,51 @@
+.env
+.env.*
+!.env.example
+!.env.*.example
+production/secrets/*
+!production/secrets/README.md
+!production/secrets/.gitkeep
+production/.env.production
+production/inference/.env.inference
+.venv/
+venv/
+**/__pycache__/
+*.py[cod]
+**/data/
+**/backups/
+*.sqlite*
+*.db
+*.jsonl
+*.pcap*
+*.dump*
+*.log
+production/web/node_modules/
+production/web/dist/
+production/web/tsconfig.tsbuildinfo
+production/calibration-results*.json
+production/analysis/output/
+
+# Secrets and environment configuration
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Logs and local databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Build and cache files
+node_modules/
+dist/
+build/

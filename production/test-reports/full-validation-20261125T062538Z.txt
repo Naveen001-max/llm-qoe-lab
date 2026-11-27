@@ -1,0 +1,28 @@
+LLM QoE Lab consolidated validation
+UTC: 20261125T062538Z
+Project: /mnt/c/Users/ns448/Downloads/LLM_QoE_Lab_Wednesday_Preparation/llm_qoe_lab
+Host: Linux LAPTOP-ODKNNFBR 6.6.114.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Mon Dec  1 20:46:23 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+This script does not change the host's production network qdiscs.
+\n===== SKIP: React production build =====\nNode.js and npm are required.
+\n===== SKIP: Docker build/startup + PostgreSQL/Redis integration =====\nDocker Engine and the Docker Compose plugin must be installed and accessible to this user.
+\n===== Live Groq/Gemini inference (configured providers) =====
+FAIL Groq live inference: HTTP Error 403: Forbidden
+FAIL Gemini live inference: HTTP Error 503: Service Unavailable
+Both Groq and Gemini must be configured and return a completion for this check to pass.
+\n===== Actual NetEm packet shaping in isolated network namespace =====
+Applied isolated namespace qdisc:
+qdisc netem 8001: root refcnt 17 limit 1000 delay 80ms  5ms loss 0.5%
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+Observed ping average RTT (ms): 101.491
+PASS: isolated NetEm delay observed; host production interfaces were untouched.
+\n===== SKIP: Physical interface packet capture =====\nSet CAPTURE_IFACE and CAPTURE_TARGET to capture a real lab interface. No interface was guessed; no traffic was captured.
+\n================ FINAL RESULTS ================
+SKIP | React production build
+SKIP | Docker build/startup + PostgreSQL/Redis integration
+FAIL | Live Groq/Gemini inference (configured providers)
+PASS | Actual NetEm packet shaping in isolated network namespace
+SKIP | Physical interface packet capture
+\nPASS=1 FAIL=1 SKIP=3
+Report: /mnt/c/Users/ns448/Downloads/LLM_QoE_Lab_Wednesday_Preparation/llm_qoe_lab/test-reports/full-validation-20261125T062538Z.txt
+RESULT: NOT READY — fix failed checks and rerun.

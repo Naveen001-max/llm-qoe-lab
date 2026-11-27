@@ -1,0 +1,139 @@
+name: llm-qoe-production
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server","--appendonly","yes","--maxmemory","256mb","--maxmemory-policy","noeviction"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    build: .
+    env_file: .env.production
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JSONL_DIR: /var/lib/llm-qoe/events
+      GATEWAY_CONTROL_URL: ${GATEWAY_CONTROL_URL}
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+      GATEWAY_CA_BUNDLE: ${GATEWAY_CA_BUNDLE:-/run/secrets/gateway-ca.crt}
+      REQUIRE_GATEWAY: ${REQUIRE_GATEWAY:-true}
+    volumes:
+      - eventdata:/var/lib/llm-qoe/events
+      - ./secrets:/run/secrets:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    expose: ["8080"]
+    networks: [backend, inference]
+    extra_hosts:
+      - "qoe-inference.lab:${INFERENCE_HOST_IP:-10.20.0.20}"
+      - "qoe-gateway.lab:${GATEWAY_HOST_IP:-10.30.0.1}"
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: ./web
+    depends_on:
+      api:
+        condition: service_healthy
+    expose: ["80"]
+    healthcheck:
+      test: ["CMD-SHELL","wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [frontend, backend]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  caddy:
+    image: caddy:2.9-alpine
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?set PUBLIC_DOMAIN to the public HTTPS hostname}
+    ports: ["80:80","443:443","443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [frontend]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml","--storage.tsdb.path=/prometheus","--web.enable-lifecycle"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+      - ./secrets:/run/secrets:ro
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [backend, inference]
+    extra_hosts:
+      - "qoe-inference.lab:${INFERENCE_HOST_IP:-10.20.0.20}"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks: [backend]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  eventdata:
+  promdata:
+  grafanadata:
+  caddydata:
+  caddyconfig:
+
+networks:
+  frontend:
+  backend:
+    internal: true
+  inference:

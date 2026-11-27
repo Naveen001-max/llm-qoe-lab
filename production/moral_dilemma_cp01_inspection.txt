@@ -1,0 +1,1699 @@
+MORAL DILEMMA CP01 — CURRENT SOURCE INSPECTION
+
+GIT STATUS
+fatal: not a git repository (or any parent up to mount point /mnt)
+Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+
+==========================================================================================
+FILE: app/protocol.py
+==========================================================================================
+from copy import deepcopy
+
+NETWORK_PROFILES = [
+    {"name":"baseline","latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0},
+    {"name":"moderate","latency_ms":100,"jitter_ms":20,"loss_pct":1,"bandwidth_mbps":50},
+    {"name":"high_delay","latency_ms":250,"jitter_ms":30,"loss_pct":1,"bandwidth_mbps":25},
+    {"name":"constrained","latency_ms":100,"jitter_ms":50,"loss_pct":3,"bandwidth_mbps":5},
+]
+
+TASKS = [
+ {"task_code":"T01","title":"Factual explanation","prompt":"Explain the difference between latency, jitter, packet loss and bandwidth to a non-technical reader. Give one practical example of each.","instructions":"Read the answer and decide whether it is accurate and understandable.","rubric":[("accuracy",30,"All four networking terms are correctly defined."),("completeness",25,"Explains each term distinctly."),("examples",25,"Examples are technically appropriate."),("clarity",20,"Language is understandable.") ]},
+ {"task_code":"T02","title":"Structured summarisation","prompt":"Summarise the following note in exactly five bullet points: A small clinic is evaluating a digital appointment system. Patients report long waits, unclear status updates, and difficulty rescheduling. Staff report duplicate bookings and manual reconciliation. The clinic wants measurable service improvements without excluding users with limited digital skills.","instructions":"Check whether the summary preserves the important points without inventing facts.","rubric":[("coverage",40,"Captures patient and staff problems."),("fidelity",30,"No unsupported claims."),("format",15,"Exactly five bullets."),("clarity",15,"Concise and readable.") ]},
+ {"task_code":"T03","title":"Multi-step reasoning","prompt":"A service receives 120 requests per minute. Each request transfers 240 KB on average. Calculate the average data rate in Mbps (decimal units), show the formula, and state one limitation of this average.","instructions":"Evaluate the calculation and reasoning.","rubric":[("method",30,"Correct conversion from KB/min to bits/s."),("result",35,"Approximately 3.84 Mbps using decimal units."),("working",20,"Shows formula and steps."),("limitation",15,"Notes burstiness/overhead/variance.") ]},
+ {"task_code":"T04","title":"Instruction following","prompt":"Create a 4-row table comparing REST, WebSocket, Server-Sent Events and gRPC. Columns must be: technology, communication pattern, common use, one limitation. Do not add text outside the table.","instructions":"Check exact format and coverage.","rubric":[("format",30,"Exactly four rows and four requested columns."),("accuracy",40,"Descriptions are technically sound."),("completeness",20,"All four technologies included."),("constraint",10,"No prose outside table.") ]},
+ {"task_code":"T05","title":"Code comprehension","prompt":"Review this Python function and identify its bug, explain why it occurs, and provide a corrected version: def average(values): return sum(values) / len(values)","instructions":"Assess correctness, edge cases and explanation.","rubric":[("bug",30,"Identifies empty-list division by zero."),("fix",35,"Handles empty input explicitly."),("reasoning",20,"Explains failure condition."),("code_quality",15,"Valid readable code.") ]},
+ {"task_code":"T06","title":"Information extraction","prompt":"Extract the following into JSON with keys name, date, amount, currency, status: 'Invoice from Northwind Labs dated 14 March 2026 for INR 18,450; payment status: pending.' Return valid JSON only.","instructions":"Check schema, values and JSON validity.","rubric":[("schema",25,"All requested keys present."),("values",40,"Correctly extracts all fields."),("types",15,"Amount numeric or consistently represented."),("validity",20,"Valid JSON only.") ]},
+ {"task_code":"T07","title":"Planning","prompt":"Prepare a practical 6-step plan to migrate a small research web application from SQLite to PostgreSQL with minimal downtime. Include backup, schema migration, validation and rollback.","instructions":"Assess sequencing and operational safety.","rubric":[("sequence",25,"Steps are logically ordered."),("backup",20,"Includes tested backup."),("validation",25,"Includes data and application checks."),("rollback",20,"Provides rollback path."),("practicality",10,"Actions are implementable.") ]},
+ {"task_code":"T08","title":"Translation","prompt":"Translate into clear Hindi (Devanagari): 'The system records the time required to receive the first visible response and the delay between consecutive streamed outputs.' Preserve the technical meaning.","instructions":"Assess semantic fidelity and readability.","rubric":[("meaning",50,"Preserves both timing concepts."),("terminology",25,"Technical terms remain understandable."),("fluency",25,"Natural Hindi.") ]},
+ {"task_code":"T09","title":"Classification","prompt":"Classify each item as network QoS, model/inference performance, or subjective QoE: packet loss, TTFT, frustration, bandwidth, queue time, satisfaction, inter-token latency, perceived usefulness. Return a table and justify ambiguous choices briefly.","instructions":"Check classification consistency and rationale.","rubric":[("classification",60,"Correct categories."),("coverage",20,"All eight items included."),("justification",20,"Clear distinction between technical and subjective measures.") ]},
+ {"task_code":"T10","title":"Numerical interpretation","prompt":"A participant's TTFT values across three trials are 400 ms, 600 ms and 500 ms. Calculate mean, median and range, and explain why reporting only the mean may hide variability.","instructions":"Check calculations and interpretation.","rubric":[("mean",25,"500 ms."),("median",25,"500 ms."),("range",20,"200 ms."),("interpretation",30,"Explains spread and trial variability.") ]},
+ {"task_code":"T11","title":"Constraint consistency","prompt":"You are helping a user plan a 2-day beginner workshop on network measurement. First propose a schedule. Then, in the same answer, ensure the second day includes practical iperf3 and packet-capture exercises, and identify prerequisites.","instructions":"Assess coherence, coverage and internal consistency.","rubric":[("two_day_structure",25,"Clear schedule for both days."),("required_exercises",30,"Includes iPerf3 and packet capture on day two."),("prerequisites",20,"Identifies required tools/skills."),("consistency",25,"No contradictions.") ]},
+ {"task_code":"T12","title":"Critical evaluation","prompt":"Evaluate this claim: 'If a chatbot has low network latency, it always provides a good user experience.' Give a balanced argument, at least three counter-factors, and a testable hypothesis.","instructions":"Assess critical reasoning and testability.","rubric":[("position",20,"Rejects the absolute claim with nuance."),("factors",35,"Includes model quality, TTFT/streaming, task success or workload."),("hypothesis",25,"Proposes measurable relationship."),("balance",20,"Distinguishes QoS from QoE.") ]}
+]
+
+def task_records():
+    out=[]
+    for idx, t in enumerate(TASKS, 1):
+        x=deepcopy(t)
+        x["task_order"]=idx
+        x["rubric"]=[{"criterion":c,"weight":w,"description":d} for c,w,d in x["rubric"]]
+        x["network_profile"]={"name":"assigned_by_randomisation","latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0}
+        out.append(x)
+    return out
+
+NASA_TLX = {
+ "instrument":"nasa_tlx_raw",
+ "version":"NASA-TLX six subscale rating form; local digital capture",
+ "scale":{"min":0,"max":100,"step":5},
+ "dimensions":[
+  {"key":"mental_demand","label":"Mental demand","anchors":["Very low","Very high"]},
+  {"key":"physical_demand","label":"Physical demand","anchors":["Very low","Very high"]},
+  {"key":"temporal_demand","label":"Temporal demand","anchors":["Very low","Very high"]},
+  {"key":"performance","label":"Performance","anchors":["Perfect / successful","Failure / poor"]},
+  {"key":"effort","label":"Effort","anchors":["Very low","Very high"]},
+  {"key":"frustration","label":"Frustration","anchors":["Very low","Very high"]}
+ ],
+ "scoring":"Raw TLX = arithmetic mean of the six ratings. Weighted TLX requires the 15 pairwise comparisons and is not inferred from the raw ratings."
+}
+P852_QOE = {
+ "instrument":"p852_aligned_supplemental",
+ "version":"Local supplemental items aligned to ITU-T P.852 chatbot subjective-evaluation dimensions; not a verbatim reproduction of the Recommendation questionnaire",
+ "scale":{"min":1,"max":5,"labels":["Very poor","Poor","Fair","Good","Excellent"]},
+ "items":[
+  {"key":"overall_quality","label":"Overall, how would you rate the quality of this chatbot interaction?"},
+  {"key":"answer_relevance","label":"How relevant was the answer to your request?"},
+  {"key":"answer_completeness","label":"How complete was the answer for your task?"},
+  {"key":"ease_of_interaction","label":"How easy was it to interact with the chatbot?"},
+  {"key":"response_clarity","label":"How clear and understandable was the response?"},
+  {"key":"interaction_satisfaction","label":"How satisfied are you with this interaction?"}
+ ],
+ "scoring":"Report item distributions and mean/median separately; do not claim this local instrument is the official ITU-T P.852 questionnaire. Obtain supervisor/ethics review before study use."
+}
+
+
+CONSENT_SUMMARY = {
+ "version":"1.0.0",
+ "title":"LLM QoE Lab research participation",
+ "summary":"You will complete 12 chatbot tasks. The study records your prompts and AI responses, pseudonymous participant code, task and model/network condition, response timing and streaming telemetry, network measurements, task scores and questionnaire ratings. Participation is voluntary. You may stop at any time without penalty. Do not enter names, contact details, passwords or other sensitive personal information into the chatbot. Data access, retention, withdrawal and contact details must be completed in the institution-approved consent document before recruitment."
+}
+
+
+==========================================================================================
+FILE: app/main.py
+==========================================================================================
+import asyncio, json, time, uuid, os, hashlib, re
+from datetime import datetime, timezone
+from pathlib import Path
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+import httpx, secrets, hmac
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from .config import settings
+from .db import Base, engine, get_db, SessionLocal
+from .models import User, Experiment, Task, Assignment, Trace, ChatRequest, Questionnaire, RubricScore, Event, ModelSnapshot, uid, utcnow
+from .security import hash_password, verify_password, create_access_token, current_user, admin_user
+from .schemas import LoginIn, ParticipantCreate, ExperimentCreate, TaskSeedIn, RandomizeIn, ChatIn, EventIn, QuestionnaireIn, RubricScoreIn, ModelFreezeIn, PrepareIn, ConsentIn, EthicsApprovalIn
+from .telemetry import record_event
+from .protocol import task_records, NASA_TLX, P852_QOE, NETWORK_PROFILES, CONSENT_SUMMARY
+
+REQUESTS = Counter("llm_qoe_requests_total","LLM QoE API requests",["route","status"])
+STREAM_E2E = Histogram("llm_qoe_stream_e2e_seconds","End-to-end streaming latency")
+TTFT = Histogram("llm_qoe_ttft_seconds","Time to first visible output")
+QUEUE = Histogram("llm_qoe_queue_seconds","Application admission queue time")
+ACTIVE = asyncio.Semaphore(int(os.getenv("API_MAX_CONCURRENT_STREAMS","32")))
+# NetEm is a shared physical gateway profile. Serialize full requests so one
+# participant cannot change another participant's network condition.
+redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+
+async def apply_gateway_profile(profile: dict):
+    if not settings.gateway_control_url:
+        if settings.require_gateway:
+            raise RuntimeError("GATEWAY_NOT_CONFIGURED")
+        return {"applied":False,"reason":"gateway control URL not configured"}
+    if not settings.gateway_token:
+        raise RuntimeError("GATEWAY_TOKEN_NOT_CONFIGURED")
+    config={k:profile.get(k,0) for k in ("latency_ms","jitter_ms","loss_pct","bandwidth_mbps")}
+    async with httpx.AsyncClient(
+        timeout=15,
+        verify=settings.gateway_ca_bundle or True,
+    ) as client:
+        response=await client.post(
+            settings.gateway_control_url.rstrip("/")+"/profile",
+            json=config,
+            headers={"Authorization":f"Bearer {settings.gateway_token}"},
+        )
+        response.raise_for_status()
+        return response.json()
+
+async def get_gateway_status():
+    if not settings.gateway_control_url or not settings.gateway_token:
+        return {"available":False}
+    async with httpx.AsyncClient(
+        timeout=15,
+        verify=settings.gateway_ca_bundle or True,
+    ) as client:
+        response=await client.get(
+            settings.gateway_control_url.rstrip("/")+"/status",
+            headers={"Authorization":f"Bearer {settings.gateway_token}"},
+        )
+        response.raise_for_status()
+        return response.json()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Schema lifecycle is owned by Alembic migrations in the container entrypoint.
+    # Bootstrap is only performed when explicitly configured; never print password.
+    if settings.admin_bootstrap_password:
+        async with SessionLocal() as db:
+            existing = await db.scalar(select(User).where(User.username == settings.admin_bootstrap_username))
+            if not existing:
+                db.add(User(username=settings.admin_bootstrap_username,
+                            password_hash=hash_password(settings.admin_bootstrap_password),
+                            role="admin", active=True))
+                await db.commit()
+    yield
+    await redis_client.aclose()
+    await engine.dispose()
+
+app = FastAPI(title=settings.app_name, version="2.0.0", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins,
+                   allow_credentials=True, allow_methods=["GET","POST","PATCH","OPTIONS"],
+                   allow_headers=["Authorization","Content-Type","X-Trace-ID","X-Client-Event-ID","X-CSRF-Token"])
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    trace = request.headers.get("X-Trace-ID") or f"trc_{uuid.uuid4().hex}"
+    request.state.trace_id = trace
+    started=time.perf_counter()
+    try:
+        response=await call_next(request)
+        response.headers["X-Trace-ID"]=trace
+        response.headers["X-Content-Type-Options"]="nosniff"
+        response.headers["Referrer-Policy"]="same-origin"
+        response.headers["Cache-Control"]="no-store" if request.url.path.startswith("/api") else "no-cache"
+        route=request.scope.get("route")
+        route_name=getattr(route,"path",request.url.path)
+        REQUESTS.labels(route_name,str(response.status_code)).inc()
+        return response
+    except Exception:
+        route=request.scope.get("route")
+        route_name=getattr(route,"path",request.url.path)
+        REQUESTS.labels(route_name,"500").inc()
+        raise
+
+@app.middleware("http")
+async def rate_limit_guard(request: Request, call_next):
+    if request.method=="POST" and request.url.path in {"/api/auth/login","/api/chat/stream"}:
+        ip=request.client.host if request.client else "unknown"
+        limit=10 if request.url.path=="/api/auth/login" else settings.rate_limit_per_minute
+        key=f"rate:{request.url.path}:{ip}"
+        try:
+            count=await redis_client.incr(key)
+            if count==1: await redis_client.expire(key,60)
+            if count>limit: return JSONResponse({"detail":"Rate limit exceeded; retry later"},status_code=429)
+        except RedisError:
+            if settings.app_env=="production":
+                return JSONResponse({"detail":"Rate limiter unavailable"},status_code=503)
+    return await call_next(request)
+
+@app.middleware("http")
+async def csrf_guard(request: Request, call_next):
+    if request.method in {"POST","PUT","PATCH","DELETE"} and request.url.path not in {"/api/auth/login"}:
+        cookie=request.cookies.get("qoe_csrf")
+        header=request.headers.get("X-CSRF-Token")
+        if request.cookies.get("qoe_access") and (not cookie or not header or not hmac.compare_digest(cookie,header)):
+            return JSONResponse({"detail":"CSRF token missing or invalid"},status_code=403)
+    return await call_next(request)
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie("qoe_access",path="/")
+    response.delete_cookie("qoe_csrf",path="/")
+    return {"logged_out":True}
+
+@app.get("/health/live")
+async def live():
+    return {"status":"alive","service":"llm-qoe-api"}
+
+@app.get("/health/ready")
+async def ready(db: AsyncSession=Depends(get_db)):
+    try:
+        await db.execute(select(1))
+        await redis_client.ping()
+        return {"status":"ready","database":"ok","redis":"ok"}
+    except Exception:
+        raise HTTPException(503,"Database unavailable")
+
+@app.get("/metrics")
+async def metrics():
+    from fastapi.responses import Response
+    return Response(generate_latest(),media_type=CONTENT_TYPE_LATEST)
+
+@app.post("/api/auth/login")
+async def login(body: LoginIn, response: Response, db: AsyncSession=Depends(get_db)):
+    user=await db.scalar(select(User).where(User.username==body.username))
+    if not user or not user.active or not verify_password(body.password,user.password_hash):
+        raise HTTPException(401,"Invalid username or password")
+    token=create_access_token(user)
+    csrf=secrets.token_urlsafe(32)
+    response.set_cookie("qoe_access",token,httponly=True,secure=settings.cookie_secure,
+                        samesite="strict",max_age=settings.access_token_minutes*60,path="/")
+    response.set_cookie("qoe_csrf",csrf,httponly=False,secure=settings.cookie_secure,
+                        samesite="strict",max_age=settings.access_token_minutes*60,path="/")
+    return {"authenticated":True,"expires_in":settings.access_token_minutes*60,
+            "user":{"id":user.id,"username":user.username,"role":user.role,"participant_code":user.participant_code}}
+
+@app.get("/api/auth/me")
+async def me(user: User=Depends(current_user)):
+    return {"id":user.id,"username":user.username,"role":user.role,"participant_code":user.participant_code,
+            "consent_at":user.consent_at.isoformat() if user.consent_at else None,
+            "consent_version":user.consent_version}
+
+@app.post("/api/admin/participants", status_code=201)
+async def create_participant(body: ParticipantCreate, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    if await db.scalar(select(User).where(User.username==body.username)):
+        raise HTTPException(409,"Username already exists")
+    user=User(username=body.username,password_hash=hash_password(body.password),
+              role="participant",participant_code=f"P-{uuid.uuid4().hex[:10].upper()}")
+    db.add(user); await db.commit(); await db.refresh(user)
+    return {"id":user.id,"username":user.username,"participant_code":user.participant_code}
+
+@app.get("/api/admin/participants")
+async def participants(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    rows=(await db.scalars(select(User).where(User.role=="participant").order_by(User.created_at.desc()))).all()
+    return [{"id":u.id,"username":u.username,"participant_code":u.participant_code,"active":u.active,
+        "consent_version":u.consent_version,"consent_at":u.consent_at.isoformat() if u.consent_at else None} for u in rows]
+
+@app.post("/api/admin/experiments",status_code=201)
+async def create_experiment(body: ExperimentCreate, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    if body.ethics_approved and not body.ethics_approval_ref.strip():
+        raise HTTPException(422,"An ethics approval reference is required when marking the study approved")
+    exp=Experiment(name=body.name,description=body.description,seed=body.seed,
+        protocol_version=settings.consent_version,ethics_approved=body.ethics_approved,
+        ethics_approval_ref=body.ethics_approval_ref.strip() or None,
+        ethics_approved_at=utcnow() if body.ethics_approved else None,
+        ethics_approved_by=admin.id if body.ethics_approved else None,created_by=admin.id)
+    db.add(exp); await db.commit(); await db.refresh(exp)
+    return {"id":exp.id,"name":exp.name,"status":exp.status,"seed":exp.seed}
+
+@app.get("/api/admin/experiments")
+async def experiments(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    rows=(await db.scalars(select(Experiment).order_by(Experiment.created_at.desc()))).all()
+    return [{"id":e.id,"name":e.name,"status":e.status,"protocol_version":e.protocol_version,
+        "ethics_approved":e.ethics_approved,"ethics_approval_ref":e.ethics_approval_ref} for e in rows]
+
+@app.post("/api/admin/experiments/{experiment_id}/ethics-approval")
+async def record_ethics_approval(experiment_id: str, body: EthicsApprovalIn,
+    db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    exp=await db.get(Experiment,experiment_id)
+    if not exp: raise HTTPException(404,"Experiment not found")
+    if not body.approved or not body.approval_ref.strip():
+        raise HTTPException(422,"A formal approval reference and approved=true are required")
+    exp.ethics_approved=True; exp.ethics_approval_ref=body.approval_ref.strip()
+    exp.ethics_approved_at=utcnow(); exp.ethics_approved_by=admin.id
+    await db.commit()
+    return {"ethics_approved":True,"approval_ref":exp.ethics_approval_ref,
+            "approved_at":exp.ethics_approved_at.isoformat()}
+
+@app.post("/api/admin/experiments/{experiment_id}/seed-tasks")
+async def seed_tasks(experiment_id: str, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    exp=await db.get(Experiment,experiment_id)
+    if not exp: raise HTTPException(404,"Experiment not found")
+    existing=await db.scalar(select(func.count(Task.id)).where(Task.experiment_id==experiment_id))
+    if existing: raise HTTPException(409,"Tasks already exist; refusing to overwrite protocol")
+    created=[]
+    for item in task_records():
+        row=Task(experiment_id=experiment_id,**item)
+        db.add(row); created.append(row)
+    await db.commit()
+    return {"created":len(created),"task_codes":[x["task_code"] for x in task_records()]}
+
+@app.get("/api/admin/experiments/{experiment_id}/tasks")
+async def list_tasks(experiment_id: str, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    rows=(await db.scalars(select(Task).where(Task.experiment_id==experiment_id).order_by(Task.task_order))).all()
+    return [{"id":t.id,"task_code":t.task_code,"title":t.title,"instructions":t.instructions,"rubric":t.rubric} for t in rows]
+
+@app.post("/api/admin/experiments/{experiment_id}/model-freeze")
+async def freeze_models(experiment_id: str, body: ModelFreezeIn, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    """Freeze server-owned model identity; never trust provider/model settings from the browser."""
+    exp = await db.get(Experiment, experiment_id)
+    if not exp:
+        raise HTTPException(404, "Experiment not found")
+    if {item.get("arm") for item in body.models} != {"llm", "slm"}:
+        raise HTTPException(422, "Submit exactly one LLM arm and one SLM arm")
+
+    saved = []
+    for item in body.models:
+        arm = item["arm"]
+        provider = settings.llm_provider if arm == "llm" else settings.slm_provider
+        model_id = settings.llm_model if arm == "llm" else settings.slm_model
+        repository = settings.llm_model_repository if arm == "llm" else settings.slm_model_repository
+        revision = settings.llm_model_revision if arm == "llm" else settings.slm_model_revision
+        base_url = settings.llm_base_url if arm == "llm" else settings.slm_base_url
+        api_key = settings.llm_api_key if arm == "llm" else settings.slm_api_key
+        max_model_len = settings.llm_max_model_len if arm == "llm" else settings.slm_max_model_len
+        max_num_seqs = settings.llm_max_num_seqs if arm == "llm" else settings.slm_max_num_seqs
+
+        if not model_id or not base_url:
+            raise HTTPException(409, f"{arm.upper()} provider, model ID and base URL must be configured server-side")
+
+        config = {
+            "temperature": settings.temperature,
+            "top_p": settings.top_p,
+            "seed": settings.inference_seed,
+            "max_output_tokens": settings.max_output_tokens,
+            "max_model_len": max_model_len,
+            "max_num_seqs": max_num_seqs,
+            "provider": provider,
+            "provenance_status": "verified_runtime" if provider == "vllm" else "configured_provider_identity",
+            "weights_immutable": bool(provider == "vllm" and repository and revision),
+        }
+        engine_version = "provider-managed"
+        stored_repository = repository or f"{provider}-managed"
+        stored_revision = revision or "provider-managed"
+
+        if provider == "vllm":
+            if not repository or not revision or len(revision) != 40 or any(c not in "0123456789abcdef" for c in revision.lower()):
+                raise HTTPException(409, f"{arm.upper()} vLLM requires configured repository and immutable 40-character commit SHA")
+            if not re.fullmatch(r"sha256:[0-9a-f]{64}", settings.vllm_image_digest):
+                raise HTTPException(409, "Set the verified vLLM image digest in VLLM_IMAGE_DIGEST before freezing")
+            config.update({
+                "vllm_image_digest": settings.vllm_image_digest,
+                "prefix_caching": False,
+                "extensible_kv_cache": False,
+                "block_size": 16,
+                "dtype": "auto",
+                "gpu_memory_utilization": 0.90,
+            })
+            engine_version = f"vLLM {settings.vllm_version}"
+            config["provenance_status"] = "verified_runtime"
+            config["weights_immutable"] = True
+            try:
+                async with httpx.AsyncClient(timeout=10, verify=settings.inference_ca_bundle or True) as client:
+                    auth_headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+                    model_response = await client.get(base_url.rstrip("/") + "/models", headers=auth_headers)
+                    model_response.raise_for_status()
+                    served = [x.get("id") for x in model_response.json().get("data", [])]
+                    version_response = await client.get(base_url.rsplit("/v1", 1)[0] + "/version", headers=auth_headers)
+                    version_response.raise_for_status()
+                    actual_version = str(version_response.json().get("version", ""))
+                if model_id not in served:
+                    raise HTTPException(409, f"Configured {arm.upper()} model alias is not served by inference endpoint")
+                if settings.vllm_version not in actual_version:
+                    raise HTTPException(409, f"Running inference engine version {actual_version} does not match pinned {settings.vllm_version}")
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(503, f"{arm.upper()} inference endpoint is not healthy: {type(exc).__name__}")
+        elif provider == "llama_cpp":
+            # Model checksum/runtime version must be recorded separately when available.
+            config["provenance_status"] = "configured_runtime_unverified"
+            config["weights_immutable"] = False
+        elif provider in {"groq", "gemini", "openai_compatible"}:
+            # API providers control model weights and revisions; do not invent a commit SHA.
+            stored_repository = f"{provider}-managed"
+            stored_revision = "provider-managed"
+            config["provenance_status"] = "provider_managed_weights"
+            config["weights_immutable"] = False
+        else:
+            raise HTTPException(422, f"Unsupported provider for {arm.upper()}: {provider}")
+
+        config["model_id"] = model_id
+        identity = {"provider": provider, "model_id": model_id, "repository": stored_repository,
+                    "revision": stored_revision, "engine_version": engine_version, "config": config}
+        canonical = json.dumps(identity, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(canonical.encode()).hexdigest()
+        existing = await db.scalar(select(ModelSnapshot).where(
+            ModelSnapshot.experiment_id == experiment_id, ModelSnapshot.arm == arm))
+        if existing:
+            if (existing.provider != provider or existing.model_id != model_id or
+                existing.revision != stored_revision or existing.config_sha256 != digest):
+                raise HTTPException(409, f"{arm.upper()} model is already frozen; create a new experiment to change it")
+            saved.append(existing)
+        else:
+            row = ModelSnapshot(
+                experiment_id=experiment_id, arm=arm, provider=provider, model_id=model_id,
+                repository=stored_repository, revision=stored_revision, engine_version=engine_version,
+                config=config, config_sha256=digest, frozen_by=admin.id)
+            db.add(row)
+            saved.append(row)
+    await db.commit()
+    return {"frozen": [{
+        "arm": row.arm, "provider": row.provider, "model_id": row.model_id,
+        "repository": row.repository, "revision": row.revision,
+        "engine_version": row.engine_version, "config_sha256": row.config_sha256,
+        "provenance_status": row.config.get("provenance_status")
+    } for row in saved]}
+
+@app.post("/api/admin/experiments/{experiment_id}/randomize")
+async def randomize(experiment_id: str, body: RandomizeIn, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    import random
+    exp=await db.get(Experiment,experiment_id)
+    if not exp: raise HTTPException(404,"Experiment not found")
+    tasks=(await db.scalars(select(Task).where(Task.experiment_id==experiment_id,Task.active==True).order_by(Task.task_order))).all()
+    frozen=(await db.scalars(select(ModelSnapshot).where(ModelSnapshot.experiment_id==experiment_id))).all()
+    if not exp.ethics_approved or not exp.ethics_approval_ref:
+        raise HTTPException(409,"Record formal institutional ethics approval before participant randomisation")
+    if {m.arm for m in frozen}!={"llm","slm"}: raise HTTPException(409,"Freeze both LLM and SLM model revisions/configurations before randomisation")
+    if len(tasks)!=12: raise HTTPException(409,"The protocol requires exactly 12 active controlled tasks before randomisation")
+    if set(body.model_arms)!={"llm","slm"}: raise HTTPException(422,"The controlled study requires both LLM and SLM arms")
+    if not body.network_profiles: raise HTTPException(422,"At least one network profile is required")
+    gateway_configured=bool(settings.gateway_control_url and settings.gateway_token)
+    for profile in body.network_profiles:
+        bounds={"latency_ms":(0,2000),"jitter_ms":(0,500),"loss_pct":(0,30),"bandwidth_mbps":(0,1000),"word_delay_ms":(0,10000)}
+        if not profile.get("name"): raise HTTPException(422,"Every network profile requires a name")
+        for key,(lo,hi) in bounds.items():
+            try: value=float(profile.get(key,0))
+            except (TypeError,ValueError): raise HTTPException(422,f"Invalid {key} in network profile")
+            if not lo<=value<=hi: raise HTTPException(422,f"{key} must be between {lo} and {hi}")
+        if not gateway_configured and any(float(profile.get(k,0)) != 0 for k in ("latency_ms","jitter_ms","loss_pct","bandwidth_mbps")):
+            raise HTTPException(409,"Network impairment is disabled because no gateway controller is configured. Use baseline-only profiles until the participant network path and gateway are verified.")
+    rng=random.Random(exp.seed)
+    made=0
+    for pid in body.participant_ids:
+        participant=await db.get(User,pid)
+        if not participant or not participant.active or participant.role!="participant": raise HTTPException(404,f"Participant {pid} not found or inactive")
+        if not participant.consent_at or participant.consent_version!=exp.protocol_version:
+            raise HTTPException(409,f"Participant {pid} has not consented to protocol version {exp.protocol_version}")
+        order=list(tasks); rng.shuffle(order)
+        conditions=[{"model_arm":arm,"network_profile":profile}
+                    for arm in body.model_arms for profile in body.network_profiles]
+        rng.shuffle(conditions)
+        for seq,task in enumerate(order,1):
+            condition=conditions[(seq-1)%len(conditions)]
+            arm=condition["model_arm"]
+            profile=condition["network_profile"]
+            exists=await db.scalar(select(Assignment.id).where(Assignment.task_id==task.id,Assignment.participant_id==pid))
+            if exists: continue
+            db.add(Assignment(experiment_id=experiment_id,task_id=task.id,participant_id=pid,
+                              sequence_no=seq,condition_order=seq,
+                              condition=condition))
+            made+=1
+    await db.commit()
+    return {"created_assignments":made,"seed":exp.seed,"randomisation":"seeded participant-specific task order; model/network conditions counterbalanced by sequence"}
+@app.get("/api/participant/assignments")
+async def my_assignments(db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant" or not user.consent_at or user.consent_version!=settings.consent_version:
+        raise HTTPException(403,"Current study consent is required")
+    rows=(await db.execute(select(Assignment,Task).join(Task,Task.id==Assignment.task_id)
+                           .where(Assignment.participant_id==user.id).order_by(Assignment.sequence_no))).all()
+    return [{"assignment_id":a.id,"sequence":a.sequence_no,"status":a.status,"task_id":t.id,
+             "task_code":t.task_code,"title":t.title,"prompt":t.prompt,"instructions":t.instructions,
+             "model_arm":(a.condition or {}).get("model_arm","llm"),
+             "network_profile":(a.condition or {}).get("network_profile",{})} for a,t in rows]
+
+@app.post("/api/participant/traces",status_code=201)
+async def create_trace(body: dict, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant" or not user.consent_at or user.consent_version!=settings.consent_version:
+        raise HTTPException(403,"Current study consent is required")
+    aid=body.get("assignment_id")
+    assignment=await db.get(Assignment,aid)
+    if not assignment or assignment.participant_id!=user.id: raise HTTPException(404,"Assignment not found")
+    task=await db.get(Task,assignment.task_id)
+    trace=Trace(experiment_id=assignment.experiment_id,task_id=task.id,assignment_id=aid,
+                participant_id=user.id,model_arm=(assignment.condition or {}).get("model_arm","llm"),
+                client_metadata=body.get("client_metadata",{}))
+    db.add(trace); await db.flush()
+    await record_event(db,trace.id,"trace_started",{"assignment_id":aid},participant_id=user.id)
+    assignment.status="in_progress"
+    if not assignment.started_at: assignment.started_at=utcnow()
+    await db.commit()
+    return {"trace_id":trace.id,"experiment_id":trace.experiment_id,"task_id":trace.task_id}
+
+@app.post("/api/participant/events",status_code=202)
+async def client_event(body: EventIn, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    trace=await db.get(Trace,body.trace_id)
+    if not trace or trace.participant_id!=user.id: raise HTTPException(404,"Trace not found")
+    await record_event(db,trace.id,body.event_type,body.payload,body.request_id,user.id,body.client_monotonic_ms)
+    await db.commit()
+    return {"accepted":True}
+
+async def _persist_failure(request_id, trace_id, user_id, code, partial_text=""):
+    async with SessionLocal() as db:
+        row=await db.get(ChatRequest,request_id)
+        if row:
+            row.status="failed"; row.error_code=code; row.completed_at=utcnow()
+            row.response_text=partial_text
+            await record_event(db,trace_id,"request_failed",{"error_code":code,"partial_response_chars":len(partial_text)},request_id,user_id)
+            await db.commit()
+
+@app.post("/api/participant/prepare")
+async def prepare_network_profile(body: PrepareIn, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant" or not user.consent_at or user.consent_version!=settings.consent_version:
+        raise HTTPException(403,"Current study consent is required")
+    assignment=await db.get(Assignment,body.assignment_id)
+    trace=await db.get(Trace,body.trace_id)
+    if not assignment or assignment.participant_id!=user.id or not trace or trace.participant_id!=user.id or trace.assignment_id!=assignment.id:
+        raise HTTPException(404,"Assignment or trace not found")
+    lock_name="qoe:gateway-network-profile"
+    lock=redis_client.lock(lock_name,timeout=120,blocking=False)
+    acquired=await lock.acquire(blocking=False)
+    if not acquired:
+        raise HTTPException(409,"The shared network-emulation gateway is currently reserved by another participant. Retry shortly.")
+    prepared_key=f"qoe:prepared:{trace.id}"
+    try:
+        profile=(assignment.condition or {}).get("network_profile",{})
+        ack=await apply_gateway_profile(profile)
+        applied=bool(ack.get("applied", False)) if isinstance(ack,dict) else False
+        has_impairment=any(float(profile.get(k,0) or 0) != 0
+                           for k in ("latency_ms","jitter_ms","loss_pct","bandwidth_mbps"))
+        if has_impairment and not applied:
+            raise RuntimeError("GATEWAY_PROFILE_NOT_APPLIED")
+        await redis_client.set(prepared_key,lock.token,ex=120)
+        await record_event(
+            db,trace.id,
+            "network_profile_applied" if applied else "baseline_only_no_gateway",
+            {"network_profile":profile,"network_profile_applied":applied,
+             "network_mode":"gateway-shaped" if applied else "baseline-only",
+             "gateway_ack":ack,"lease_seconds":120},
+            participant_id=user.id,
+        )
+        await db.commit()
+        return {"prepared":True,"network_profile_applied":applied,
+                "network_mode":"gateway-shaped" if applied else "baseline-only",
+                "trace_id":trace.id,"lease_seconds":120}
+    except Exception:
+        await redis_client.delete(prepared_key)
+        try: await lock.release()
+        except RedisError: pass
+        raise HTTPException(503,"Unable to prepare the assigned network profile")
+
+@app.post("/api/chat/stream")
+async def chat_stream(body: ChatIn, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant" or not user.consent_at or user.consent_version!=settings.consent_version:
+        raise HTTPException(403,"Current study consent is required")
+    if len(body.prompt)>settings.max_prompt_chars: raise HTTPException(413,"Prompt too long")
+    assignment=await db.get(Assignment,body.assignment_id)
+    trace=await db.get(Trace,body.trace_id)
+    if not assignment or assignment.participant_id!=user.id or not trace or trace.participant_id!=user.id or trace.assignment_id!=assignment.id:
+        raise HTTPException(404,"Assignment or trace not found")
+    prepared_key=f"qoe:prepared:{trace.id}"
+    lock_name="qoe:gateway-network-profile"
+    lock_token=await redis_client.get(prepared_key)
+    current_lock_token=await redis_client.get(lock_name)
+    if not lock_token or lock_token!=current_lock_token:
+        if not current_lock_token:
+            try: await apply_gateway_profile({"latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0})
+            except Exception: pass
+        raise HTTPException(409,"Network profile lease missing or expired. Prepare the task again before sending.")
+    arm=(assignment.condition or {}).get("model_arm","llm")
+    base_url, model=(settings.llm_base_url,settings.llm_model) if arm=="llm" else (settings.slm_base_url,settings.slm_model)
+    provider = settings.llm_provider if arm == "llm" else settings.slm_provider
+    request_id=uid("req")
+    row=ChatRequest(id=request_id,trace_id=trace.id,participant_id=user.id,prompt=body.prompt,
+                    provider_model=model,status="queued")
+    db.add(row)
+    await record_event(db,trace.id,"request_queued",{"model_arm":arm,"provider":provider,"model":model,
+        "network_profile":(assignment.condition or {}).get("network_profile",{})},request_id,user.id)
+    await db.commit()
+    network_lock_obj=redis_client.lock(lock_name,timeout=3600,token=lock_token)
+    try:
+        await network_lock_obj.extend(3600,replace_ttl=True)
+    except RedisError:
+        raise HTTPException(409,"Network profile lease expired; prepare the task again.")
+    async def event_stream():
+        start=time.perf_counter(); first=None; previous=None; gaps=[]; response_parts=[]; chunk_records=[]; response_bytes=0; response_chars=0; output_tokens=0; finish_reason=None
+        try:
+            await network_lock_obj.extend(3600,replace_ttl=True)
+            yield f"event: metadata\ndata: {json.dumps({'request_id':request_id,'trace_id':trace.id,'provider':provider,'model':model,'model_arm':arm})}\n\n"
+            queue_start=time.perf_counter()
+            async with ACTIVE:
+                queue_ms=(time.perf_counter()-queue_start)*1000
+                async with SessionLocal() as session:
+                    rr=await session.get(ChatRequest,request_id); rr.queue_time_ms=queue_ms; rr.status="running"
+                    await record_event(session,trace.id,"inference_admitted",{"api_admission_queue_ms":queue_ms},request_id,user.id)
+                    await session.commit()
+                api_key=settings.llm_api_key if arm=="llm" else settings.slm_api_key
+                payload={"model":model,"messages":[{"role":"user","content":body.prompt}],
+                         "stream":True,"stream_options":{"include_usage":True},
+                         "max_tokens":settings.max_output_tokens,"temperature":settings.temperature,"top_p":settings.top_p,"seed":settings.inference_seed}
+                timeout=httpx.Timeout(connect=15,read=300,write=30,pool=15)
+                provider_headers={"Content-Type":"application/json"}
+                if api_key: provider_headers["Authorization"]=f"Bearer {api_key}"
+                async with httpx.AsyncClient(timeout=timeout,verify=settings.inference_ca_bundle or True) as client:
+                    async with client.stream("POST",base_url.rstrip("/")+"/chat/completions",
+                        json=payload,headers=provider_headers) as resp:
+                        if resp.status_code>=400:
+                            text=(await resp.aread()).decode("utf-8","replace")[:1000]
+                            raise RuntimeError(f"INFERENCE_HTTP_{resp.status_code}:{text}")
+                        async for line in resp.aiter_lines():
+                            if not line.startswith("data:"): continue
+                            raw=line[5:].strip()
+                            if raw=="[DONE]": break
+                            try: packet=json.loads(raw)
+                            except Exception: continue
+                            if packet.get("usage"):
+                                output_tokens=int(packet["usage"].get("completion_tokens") or output_tokens)
+                            choices=packet.get("choices") or []
+                            if not choices: continue
+                            choice=choices[0]; delta=choice.get("delta") or {}
+                            content=delta.get("content")
+                            if content:
+                                now=time.perf_counter()
+                                if first is None:
+                                    first=now; TTFT.observe(first-start)
+                                    ttft_ms=(first-start)*1000
+                                    async with SessionLocal() as session:
+                                        rr=await session.get(ChatRequest,request_id)
+                                        rr.ttft_ms=ttft_ms; rr.first_token_at=utcnow()
+                                        await record_event(session,trace.id,"first_output_received",{"server_ttft_ms":ttft_ms},request_id,user.id)
+                                        await session.commit()
+                                if previous is not None: gaps.append((now-previous)*1000)
+                                previous=now; response_parts.append(content)
+                                chunk_bytes=len(content.encode("utf-8")); response_bytes+=chunk_bytes; response_chars+=len(content)
+                                chunk_records.append({"sequence":len(chunk_records)+1,"arrival_ms":(now-start)*1000,
+                                    "inter_event_gap_ms":gaps[-1] if gaps else None,"bytes":chunk_bytes,"characters":len(content)})
+                                await network_lock_obj.extend(3600,replace_ttl=True)
+                                yield f"event: delta\ndata: {json.dumps({'request_id':request_id,'text':content,'sequence':len(response_parts),'received_monotonic_ms':(now-start)*1000})}\n\n"
+                            if choice.get("finish_reason"): finish_reason=choice["finish_reason"]
+                end=time.perf_counter(); e2e=(end-start)*1000
+                itl=(sum(gaps)/len(gaps)) if gaps else None
+                tpot=(e2e-(first-start)*1000)/(max(output_tokens-1,1)) if first and output_tokens>1 else None
+                STREAM_E2E.observe(e2e/1000)
+                final_text="".join(response_parts)
+                async with SessionLocal() as session:
+                    rr=await session.get(ChatRequest,request_id)
+                    rr.response_text=final_text; rr.status="completed"; rr.finish_reason=finish_reason
+                    rr.e2e_latency_ms=e2e; rr.itl_mean_ms=itl; rr.tpot_ms=tpot
+                    rr.output_tokens=output_tokens; rr.chunk_count=len(chunk_records)
+                    rr.response_bytes=response_bytes; rr.response_chars=response_chars; rr.completed_at=utcnow()
+                    await record_event(session,trace.id,"stream_chunk_summary",{
+                        "chunk_count":len(chunk_records),"response_bytes":response_bytes,
+                        "response_chars":response_chars,"chunk_events":chunk_records
+                    },request_id,user.id)
+                    await record_event(session,trace.id,"request_completed",{
+                        "server_ttft_ms":rr.ttft_ms,"mean_inter_stream_event_gap_ms":itl,"tpot_ms":tpot,
+                        "api_admission_queue_ms":rr.queue_time_ms,"server_e2e_latency_ms":e2e,
+                        "output_tokens":output_tokens,"finish_reason":finish_reason,
+                        "itl_measurement":"inter-SSE-output event gaps; token-level only when provider emits one token per event",
+                        "tpot_measurement":"post-first-output stream duration divided by provider completion tokens minus one; includes transport/backpressure and is not pure engine TPOT"
+                    },request_id,user.id)
+                    await session.commit()
+                yield f"event: completed\ndata: {json.dumps({'request_id':request_id,'trace_id':trace.id,'server_ttft_ms':(first-start)*1000 if first else None,'itl_mean_ms':itl,'tpot_ms':tpot,'queue_time_ms':queue_ms,'server_e2e_latency_ms':e2e,'output_tokens':output_tokens,'chunk_count':len(chunk_records),'response_bytes':response_bytes,'response_chars':response_chars,'finish_reason':finish_reason,'itl_measurement':'inter-SSE-output event gaps; token-level only when provider emits one token per event','tpot_measurement':'end-to-end post-first-output estimate, not pure engine TPOT','status':'completed'})}\n\n"
+        except asyncio.CancelledError:
+            await _persist_failure(request_id,trace.id,user.id,"CLIENT_CANCELLED","".join(response_parts))
+            raise
+        except Exception as exc:
+            code=str(exc).split(":")[0][:80]
+            await _persist_failure(request_id,trace.id,user.id,code,"".join(response_parts))
+            yield f"event: error\ndata: {json.dumps({'request_id':request_id,'trace_id':trace.id,'error':'Inference request failed','error_code':code})}\n\n"
+        finally:
+            current_token=await redis_client.get(lock_name)
+            if current_token==lock_token:
+                end_stats=None; status_error=None
+                try: end_stats=await get_gateway_status()
+                except Exception as exc: status_error=type(exc).__name__
+                try:
+                    reset_ack=await apply_gateway_profile({"latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0})
+                    async with SessionLocal() as session:
+                        await record_event(session,trace.id,"network_profile_reset",
+                            {"profile":"baseline","gateway_end_stats":end_stats,"gateway_status_error":status_error,
+                             "gateway_reset_ack":reset_ack},request_id,user.id)
+                        await session.commit()
+                except Exception as reset_error:
+                    async with SessionLocal() as session:
+                        await record_event(session,trace.id,"network_profile_reset_failed",
+                            {"error_type":type(reset_error).__name__,"gateway_status_error":status_error},request_id,user.id)
+                        await session.commit()
+                await redis_client.delete(prepared_key)
+                try: await network_lock_obj.release()
+                except RedisError: pass
+            else:
+                await redis_client.delete(prepared_key)
+    return StreamingResponse(event_stream(),media_type="text/event-stream",
+        headers={"Cache-Control":"no-cache, no-transform","X-Accel-Buffering":"no","X-Request-ID":request_id,"X-Trace-ID":trace.id})
+
+@app.get("/api/protocol/consent")
+async def consent_information():
+    return {**CONSENT_SUMMARY,"version":settings.consent_version}
+
+@app.post("/api/participant/consent")
+async def accept_consent(body: ConsentIn, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant": raise HTTPException(403,"Participant role required")
+    if not body.accepted: raise HTTPException(422,"Explicit consent acceptance is required")
+    if body.consent_version!=settings.consent_version: raise HTTPException(409,"Consent version changed; reload the consent page")
+    user.consent_at=utcnow(); user.consent_version=body.consent_version
+    await db.commit()
+    return {"accepted":True,"consent_version":user.consent_version,"consent_at":user.consent_at.isoformat()}
+
+@app.post("/api/participant/withdraw")
+async def withdraw_participation(response: Response, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role!="participant": raise HTTPException(403,"Participant role required")
+    user.active=False; user.consent_withdrawn_at=utcnow()
+    await db.commit()
+    response.delete_cookie("qoe_access",path="/")
+    response.delete_cookie("qoe_csrf",path="/")
+    return {"withdrawn":True,"message":"Further study access is disabled. Data retention/deletion follows the approved consent and institutional policy."}
+
+@app.get("/api/protocol/questionnaires")
+async def questionnaires(user: User=Depends(current_user)):
+    return {"nasa_tlx":NASA_TLX,"p852_aligned_qoe":P852_QOE}
+
+@app.post("/api/participant/questionnaires",status_code=201)
+async def submit_questionnaire(body: QuestionnaireIn, db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    trace=await db.get(Trace,body.trace_id)
+    if not trace or trace.participant_id!=user.id: raise HTTPException(404,"Trace not found")
+    if body.instrument=="nasa_tlx_raw":
+        keys=[x["key"] for x in NASA_TLX["dimensions"]]
+        if set(body.answers)!=set(keys): raise HTTPException(422,"All six NASA-TLX ratings are required")
+        vals=[float(body.answers[k]) for k in keys]
+        if any(v<0 or v>100 for v in vals): raise HTTPException(422,"NASA-TLX ratings must be 0–100")
+        score=sum(vals)/6
+    elif body.instrument=="p852_aligned_supplemental":
+        keys=[x["key"] for x in P852_QOE["items"]]
+        if set(body.answers)!=set(keys): raise HTTPException(422,"All QoE items are required")
+        vals=[int(body.answers[k]) for k in keys]
+        if any(v<1 or v>5 for v in vals): raise HTTPException(422,"QoE ratings must be 1–5")
+        score=sum(vals)/len(vals)
+    else: raise HTTPException(422,"Unknown instrument")
+    db.add(Questionnaire(trace_id=trace.id,participant_id=user.id,instrument=body.instrument,answers=body.answers,score=score))
+    await record_event(db,trace.id,"questionnaire_submitted",{"instrument":body.instrument,"score":score},participant_id=user.id)
+    await db.flush()
+    completed_instruments=(await db.scalars(select(Questionnaire.instrument).where(Questionnaire.trace_id==trace.id))).all()
+    if {"nasa_tlx_raw","p852_aligned_supplemental"}.issubset(set(completed_instruments)):
+        assignment=await db.get(Assignment,trace.assignment_id)
+        assignment.status="completed"; assignment.completed_at=utcnow()
+    await db.commit()
+    return {"accepted":True,"instrument":body.instrument,"score":score}
+
+@app.post("/api/admin/scorers",status_code=201)
+async def create_scorer(body: ParticipantCreate, db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    if await db.scalar(select(User).where(User.username==body.username)):
+        raise HTTPException(409,"Username already exists")
+    user=User(username=body.username,password_hash=hash_password(body.password),role="scorer",
+              participant_code=f"S-{uuid.uuid4().hex[:10].upper()}",active=True)
+    db.add(user); await db.commit(); await db.refresh(user)
+    return {"id":user.id,"username":user.username,"role":"scorer"}
+
+@app.post("/api/admin/rubric-scores",status_code=201)
+async def score_rubric(body: RubricScoreIn, db: AsyncSession=Depends(get_db), admin: User=Depends(current_user)):
+    if admin.role not in {"admin","scorer"}: raise HTTPException(403,"Scorer role required")
+    trace=await db.get(Trace,body.trace_id)
+    if not trace: raise HTTPException(404,"Trace not found")
+    task=await db.get(Task,trace.task_id)
+    existing=await db.scalar(select(RubricScore).where(RubricScore.trace_id==trace.id,RubricScore.scorer_id==admin.id))
+    if existing: raise HTTPException(409,"This scorer has already rated this trace")
+    criteria={x["criterion"]:x["weight"] for x in task.rubric}
+    if set(body.criterion_scores)!=set(criteria): raise HTTPException(422,"Scores must cover every rubric criterion")
+    if any(not 0<=float(v)<=100 for v in body.criterion_scores.values()): raise HTTPException(422,"Each criterion score must be 0–100")
+    weighted=sum(float(body.criterion_scores[k])*criteria[k] for k in criteria)/sum(criteria.values())
+    row=RubricScore(trace_id=trace.id,scorer_id=admin.id,criterion_scores=body.criterion_scores,total_score=weighted,blinded=True)
+    db.add(row); await db.commit()
+    return {"score_id":row.id,"weighted_score":weighted}
+
+@app.post("/api/admin/gateway/reset")
+async def reset_gateway(admin: User=Depends(admin_user)):
+    lock=redis_client.lock("qoe:gateway-network-profile",timeout=30,blocking=False)
+    if not await lock.acquire(blocking=False):
+        raise HTTPException(409,"Gateway is currently leased by a participant request")
+    try:
+        ack=await apply_gateway_profile({"latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0})
+        applied=bool(ack.get("applied", True)) if isinstance(ack,dict) else True
+        return {"reset":applied,"profile":"baseline","gateway_ack":ack}
+    finally:
+        try: await lock.release()
+        except RedisError: pass
+
+@app.get("/api/admin/deployment-status")
+async def admin_deployment_status(admin: User=Depends(admin_user)):
+    gateway_configured = bool(settings.gateway_control_url and settings.gateway_token)
+    gateway_status = None
+    gateway_error = None
+    if gateway_configured:
+        try:
+            gateway_status = await get_gateway_status()
+        except Exception as exc:
+            gateway_error = type(exc).__name__
+    return {
+        "gateway_configured": gateway_configured,
+        "network_impairment_enabled": gateway_configured and gateway_status is not None,
+        "network_mode": "gateway-controlled" if gateway_configured else "baseline-only",
+        "require_gateway": settings.require_gateway,
+        "gateway_status": gateway_status,
+        "gateway_status_error": gateway_error,
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.llm_model,
+        "slm_provider": settings.slm_provider,
+        "slm_model": settings.slm_model,
+    }
+
+@app.get("/api/admin/summary")
+async def admin_summary(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    return {
+      "participants":await db.scalar(select(func.count(User.id)).where(User.role=="participant")),
+      "experiments":await db.scalar(select(func.count(Experiment.id))),
+      "assignments":await db.scalar(select(func.count(Assignment.id))),
+      "traces":await db.scalar(select(func.count(Trace.id))),
+      "requests":await db.scalar(select(func.count(ChatRequest.id))),
+      "questionnaires":await db.scalar(select(func.count(Questionnaire.id)))
+    }
+
+@app.get("/api/admin/analytics")
+async def admin_analytics(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    request_rows = (await db.execute(
+        select(ChatRequest, Trace, Assignment)
+        .join(Trace, ChatRequest.trace_id == Trace.id)
+        .join(Assignment, Trace.assignment_id == Assignment.id)
+        .order_by(ChatRequest.started_at)
+    )).all()
+    ttft = [float(r.ttft_ms) for r, _, _ in request_rows if r.ttft_ms is not None]
+    e2e = [float(r.e2e_latency_ms) for r, _, _ in request_rows if r.e2e_latency_ms is not None]
+    rates = [float(r.output_tokens) / (float(r.e2e_latency_ms) / 1000.0)
+             for r, _, _ in request_rows if r.output_tokens and r.e2e_latency_ms and r.e2e_latency_ms > 0]
+    groups = {}
+    for req, trace, assignment in request_rows:
+        condition = (assignment.condition or {}).get("network_profile", {}).get("name", "unspecified")
+        bucket = groups.setdefault(condition, {"ttft": [], "e2e": [], "rates": [], "requests": 0})
+        bucket["requests"] += 1
+        if req.ttft_ms is not None: bucket["ttft"].append(float(req.ttft_ms))
+        if req.e2e_latency_ms is not None: bucket["e2e"].append(float(req.e2e_latency_ms))
+        if req.output_tokens and req.e2e_latency_ms and req.e2e_latency_ms > 0:
+            bucket["rates"].append(float(req.output_tokens) / (float(req.e2e_latency_ms) / 1000.0))
+    qrows = (await db.scalars(select(Questionnaire))).all()
+    probe_events = (await db.scalars(select(Event).where(Event.event_type == "https_rtt_probe"))).all()
+    rtt_values = [float((event.payload or {}).get("rtt_ms")) for event in probe_events
+                  if isinstance((event.payload or {}).get("rtt_ms"), (int, float))]
+    rtt_mean = round(sum(rtt_values) / len(rtt_values), 2) if rtt_values else None
+    rtt_sd = None
+    if len(rtt_values) > 1:
+        rtt_sd = round((sum((value - sum(rtt_values) / len(rtt_values)) ** 2 for value in rtt_values) / len(rtt_values)) ** 0.5, 2)
+    distribution = {}
+    for questionnaire in qrows:
+        if questionnaire.instrument not in {"p852_aligned_supplemental", "qoe"}:
+            continue
+        for key, value in (questionnaire.answers or {}).items():
+            if isinstance(value, (int, float)):
+                distribution.setdefault(key, []).append(float(value))
+    def mean(values):
+        return round(sum(values) / len(values), 2) if values else None
+    return {
+        "summary": {
+            "participants": await db.scalar(select(func.count(User.id)).where(User.role == "participant")),
+            "experiments": await db.scalar(select(func.count(Experiment.id))),
+            "assignments": await db.scalar(select(func.count(Assignment.id))),
+            "traces": await db.scalar(select(func.count(Trace.id))),
+            "requests": len(request_rows),
+            "questionnaires": len(qrows),
+        },
+        "completed_requests": sum(1 for r, _, _ in request_rows if r.status == "completed"),
+        "mean_ttft_ms": mean(ttft),
+        "mean_e2e_ms": mean(e2e),
+        "mean_tokens_per_second": mean(rates),
+        "mean_https_rtt_ms": rtt_mean,
+        "https_rtt_variation_sd_ms": rtt_sd,
+        "https_rtt_probe_samples": len(rtt_values),
+        "by_network": [{
+            "condition": name, "requests": data["requests"],
+            "mean_ttft_ms": mean(data["ttft"]), "mean_e2e_ms": mean(data["e2e"]),
+            "mean_tokens_per_second": mean(data["rates"])
+        } for name, data in sorted(groups.items())],
+        "qoe_distribution": {key: mean(values) for key, values in distribution.items()},
+        "measurement_note": "Server TTFT includes API admission-queue wait. Output rate is estimated from recorded output_tokens divided by end-to-end latency; it is not provider-authoritative. HTTPS RTT probes measure browser-to-lab health-endpoint round trips, not packet-level jitter or RTT to the LLM provider."
+    }
+
+
+@app.get("/api/admin/export/study.xlsx")
+async def export_study_workbook(
+    experiment_id: str | None = None,
+    task_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(admin_user)
+):
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from fastapi.responses import Response
+
+    traces = (await db.scalars(select(Trace).order_by(Trace.started_at))).all()
+    if experiment_id:
+        traces = [t for t in traces if t.experiment_id == experiment_id]
+    if task_id:
+        traces = [t for t in traces if t.task_id == task_id]
+    trace_ids = {t.id for t in traces}
+    people = (await db.scalars(select(User))).all()
+    participant_codes = {u.id: (u.participant_code or "STAFF") for u in people}
+    requests = (await db.scalars(select(ChatRequest).order_by(ChatRequest.started_at))).all()
+    requests = [r for r in requests if r.trace_id in trace_ids]
+    events = (await db.scalars(select(Event).order_by(Event.occurred_at))).all()
+    events = [e for e in events if e.trace_id in trace_ids]
+    questionnaires = (await db.scalars(select(Questionnaire).order_by(Questionnaire.submitted_at))).all()
+    questionnaires = [q for q in questionnaires if q.trace_id in trace_ids]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Requests"
+    ws.append(["request_id", "trace_id", "participant_code", "model", "status", "participant_prompt",
+               "participant_prompt_chars", "AI_response", "AI_response_chars", "TTFT_ms",
+               "ITL_mean_ms", "TPOT_ms", "queue_time_ms", "E2E_ms", "output_tokens",
+               "chunk_count", "response_bytes", "finish_reason", "started_at", "completed_at"])
+    for req in requests:
+        trace = next((t for t in traces if t.id == req.trace_id), None)
+        ws.append([req.id, req.trace_id, participant_codes.get(req.participant_id, "UNKNOWN"),
+                   req.provider_model, req.status, req.prompt, len(req.prompt or ""), req.response_text,
+                   req.response_chars, req.ttft_ms, req.itl_mean_ms, req.tpot_ms,
+                   req.queue_time_ms, req.e2e_latency_ms, req.output_tokens, req.chunk_count,
+                   req.response_bytes, req.finish_reason,
+                   req.started_at.isoformat() if req.started_at else None,
+                   req.completed_at.isoformat() if req.completed_at else None])
+    ev = wb.create_sheet("Event Ledger")
+    ev.append(["event_id", "trace_id", "request_id", "participant_code", "event_type", "occurred_at", "client_monotonic_ms", "payload_json"])
+    for event in events:
+        ev.append([event.id, event.trace_id, event.request_id,
+                   participant_codes.get(event.participant_id, "UNKNOWN"), event.event_type,
+                   event.occurred_at.isoformat() if event.occurred_at else None,
+                   event.client_monotonic_ms, json.dumps(event.payload or {}, ensure_ascii=False)])
+    qws = wb.create_sheet("Questionnaires")
+    qws.append(["questionnaire_id", "trace_id", "participant_code", "instrument", "answers_json", "score", "submitted_at"])
+    for q in questionnaires:
+        qws.append([q.id, q.trace_id, participant_codes.get(q.participant_id, "UNKNOWN"),
+                    q.instrument, json.dumps(q.answers or {}, ensure_ascii=False), q.score,
+                    q.submitted_at.isoformat() if q.submitted_at else None])
+    snapshots = (await db.scalars(select(ModelSnapshot).order_by(ModelSnapshot.experiment_id, ModelSnapshot.arm))).all()
+    if experiment_id:
+        snapshots = [s for s in snapshots if s.experiment_id == experiment_id]
+    provenance = wb.create_sheet("Model Provenance")
+    provenance.append(["experiment_id", "arm", "provider", "model_id", "repository", "revision",
+                       "engine_version", "provenance_status", "weights_immutable", "config_sha256", "frozen_at"])
+    for snap in snapshots:
+        provenance.append([snap.experiment_id, snap.arm, snap.provider, snap.model_id, snap.repository,
+                           snap.revision, snap.engine_version, (snap.config or {}).get("provenance_status"),
+                           (snap.config or {}).get("weights_immutable"), snap.config_sha256,
+                           snap.frozen_at.isoformat() if snap.frozen_at else None])
+    manifest = wb.create_sheet("Export Manifest")
+    manifest.append(["field", "value"])
+    manifest.append(["exported_at_utc", utcnow().isoformat()])
+    manifest.append(["experiment_id_filter", experiment_id or "ALL"])
+    manifest.append(["task_id_filter", task_id or "ALL"])
+    manifest.append(["trace_rows", len(traces)])
+    manifest.append(["request_rows", len(requests)])
+    manifest.append(["event_rows", len(events)])
+    manifest.append(["questionnaire_rows", len(questionnaires)])
+    manifest.append(["privacy", "Participant codes are pseudonymous; workbook includes prompt and AI response text. Restrict access and follow consent/data-retention rules."])
+    for sheet in wb.worksheets:
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        for cell in sheet[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="26364A")
+        for column in sheet.columns:
+            letter = column[0].column_letter
+            width = min(42, max(12, max(len(str(c.value or "")) for c in column[:200]) + 2))
+            sheet.column_dimensions[letter].width = width
+    output = BytesIO()
+    wb.save(output)
+    suffix = f"-{experiment_id}" if experiment_id else ""
+    return Response(output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="llm-qoe-research{suffix}.xlsx"'})
+
+
+@app.get("/api/scorer/queue")
+async def scorer_queue(db: AsyncSession=Depends(get_db), user: User=Depends(current_user)):
+    if user.role not in {"admin","scorer"}: raise HTTPException(403,"Scorer role required")
+    scored=(await db.scalars(select(RubricScore.trace_id).where(RubricScore.scorer_id==user.id))).all()
+    rows=(await db.execute(select(Trace,Task,ChatRequest).join(Task,Task.id==Trace.task_id)
+        .join(ChatRequest,ChatRequest.trace_id==Trace.id).where(ChatRequest.status=="completed")
+        .order_by(Trace.started_at,ChatRequest.started_at))).all()
+    latest={}
+    for trace,task,req in rows:
+        latest[trace.id]=(trace,task,req)
+    return [{"trace_id":trace.id,"task_code":task.task_code,"task_title":task.title,
+        "task_prompt":task.prompt,"rubric":task.rubric,"response_text":req.response_text,"request_id":req.id}
+        for trace,task,req in latest.values() if trace.id not in set(scored)]
+
+@app.get("/api/admin/export/events.jsonl")
+async def export_events(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    rows=(await db.scalars(select(Event).order_by(Event.occurred_at))).all()
+    people=(await db.scalars(select(User))).all()
+    code_map={u.id:(u.participant_code or "STAFF") for u in people}
+    content="".join(json.dumps({"event_id":e.id,"trace_id":e.trace_id,"request_id":e.request_id,
+      "participant_id":code_map.get(e.participant_id,"UNKNOWN"),"event_type":e.event_type,"occurred_at":e.occurred_at.isoformat(),
+      "client_monotonic_ms":e.client_monotonic_ms,"payload":e.payload},ensure_ascii=False)+"\n" for e in rows)
+    from fastapi.responses import Response
+    return Response(content,media_type="application/x-ndjson",headers={"Content-Disposition":"attachment; filename=llm-qoe-events.jsonl"})
+
+@app.get("/api/admin/export/study.json")
+async def export_study(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    traces=(await db.scalars(select(Trace).order_by(Trace.started_at))).all()
+    result=[]
+    for trace in traces:
+        task=await db.get(Task,trace.task_id)
+        assignment=await db.get(Assignment,trace.assignment_id)
+        experiment=await db.get(Experiment,trace.experiment_id)
+        participant=await db.get(User,trace.participant_id)
+        snapshot=await db.scalar(select(ModelSnapshot).where(
+            ModelSnapshot.experiment_id==trace.experiment_id,ModelSnapshot.arm==trace.model_arm))
+        requests=(await db.scalars(select(ChatRequest).where(ChatRequest.trace_id==trace.id))).all()
+        questionnaires=(await db.scalars(select(Questionnaire).where(Questionnaire.trace_id==trace.id))).all()
+        scores=(await db.scalars(select(RubricScore).where(RubricScore.trace_id==trace.id))).all()
+        result.append({"trace":{"id":trace.id,"experiment_id":trace.experiment_id,"task_id":trace.task_id,
+            "assignment_id":trace.assignment_id,"participant_id":participant.participant_code if participant else "UNKNOWN",
+            "consent_version":participant.consent_version if participant else None,
+            "consent_withdrawn_at":participant.consent_withdrawn_at.isoformat() if participant and participant.consent_withdrawn_at else None,
+            "model_arm":trace.model_arm,
+            "started_at":trace.started_at.isoformat()},
+            "experiment":{"name":experiment.name,"protocol_version":experiment.protocol_version,"seed":experiment.seed,
+                "ethics_approved":experiment.ethics_approved,"ethics_approval_ref":experiment.ethics_approval_ref,
+                "ethics_approved_at":experiment.ethics_approved_at.isoformat() if experiment.ethics_approved_at else None},
+            "task":{"task_code":task.task_code,"title":task.title,"rubric":task.rubric},
+            "assignment":{"sequence_no":assignment.sequence_no,"condition":assignment.condition},
+            "model_snapshot":{"arm":snapshot.arm,"provider":snapshot.provider,"model_id":snapshot.model_id,
+                "repository":snapshot.repository,"revision":snapshot.revision,"engine_version":snapshot.engine_version,
+                "config":snapshot.config,"config_sha256":snapshot.config_sha256,
+                "frozen_at":snapshot.frozen_at.isoformat() if snapshot.frozen_at else None} if snapshot else None,
+            "requests":[{"id":r.id,"model":r.provider_model,"status":r.status,"prompt":r.prompt,
+                "response_text":r.response_text,"ttft_ms":r.ttft_ms,"itl_mean_ms":r.itl_mean_ms,
+                "tpot_ms":r.tpot_ms,"queue_time_ms":r.queue_time_ms,"e2e_latency_ms":r.e2e_latency_ms,
+                "output_tokens":r.output_tokens,"chunk_count":r.chunk_count,"response_bytes":r.response_bytes,
+                "response_chars":r.response_chars,"finish_reason":r.finish_reason} for r in requests],
+            "questionnaires":[{"instrument":q.instrument,"answers":q.answers,"score":q.score} for q in questionnaires],
+            "rubric_scores":[{"criterion_scores":r.criterion_scores,"total_score":r.total_score,
+                "scorer_id":(await db.get(User,r.scorer_id)).participant_code if await db.get(User,r.scorer_id) else "UNKNOWN"} for r in scores]})
+    return JSONResponse(result,headers={"Content-Disposition":"attachment; filename=llm-qoe-study-export.json"})
+
+@app.get("/api/admin/export/requests.csv")
+async def export_requests(db: AsyncSession=Depends(get_db), admin: User=Depends(admin_user)):
+    rows=(await db.scalars(select(ChatRequest).order_by(ChatRequest.started_at))).all()
+    people=(await db.scalars(select(User))).all()
+    code_map={u.id:(u.participant_code or "STAFF") for u in people}
+    import csv,io
+    buf=io.StringIO(); writer=csv.writer(buf)
+    writer.writerow(["request_id","trace_id","participant_id","model","status","participant_prompt_chars","ai_response_chars","ttft_ms","itl_mean_ms","tpot_ms","queue_time_ms","e2e_latency_ms","output_tokens","chunk_count","response_bytes","finish_reason","started_at","completed_at"])
+    for r in rows:
+        writer.writerow([r.id,r.trace_id,code_map.get(r.participant_id,"UNKNOWN"),r.provider_model,r.status,len(r.prompt or ""),r.response_chars,r.ttft_ms,r.itl_mean_ms,r.tpot_ms,r.queue_time_ms,r.e2e_latency_ms,r.output_tokens,r.chunk_count,r.response_bytes,r.finish_reason,r.started_at,r.completed_at])
+    from fastapi.responses import Response
+    return Response(buf.getvalue(),media_type="text/csv",headers={"Content-Disposition":"attachment; filename=llm-qoe-requests.csv"})
+
+
+==========================================================================================
+FILE: app/models.py
+==========================================================================================
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import String, Text, DateTime, Boolean, Integer, Float, ForeignKey, JSON, Index, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from .db import Base
+
+def uid(prefix: str):
+    return f"{prefix}_{uuid.uuid4().hex}"
+
+def utcnow():
+    return datetime.now(timezone.utc)
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("usr"))
+    username: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default="participant", index=True)
+    participant_code: Mapped[str | None] = mapped_column(String(40), unique=True, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consent_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    consent_withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class Experiment(Base):
+    __tablename__ = "experiments"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("exp"))
+    name: Mapped[str] = mapped_column(String(240))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), default="draft")
+    protocol_version: Mapped[str] = mapped_column(String(40), default="1.0.0")
+    seed: Mapped[int] = mapped_column(Integer, default=20261117)
+    ethics_approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    ethics_approval_ref: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    ethics_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ethics_approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("tsk"))
+    experiment_id: Mapped[str] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), index=True)
+    task_code: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(240))
+    prompt: Mapped[str] = mapped_column(Text)
+    instructions: Mapped[str] = mapped_column(Text)
+    rubric: Mapped[dict] = mapped_column(JSON)
+    network_profile: Mapped[dict] = mapped_column(JSON)
+    model_arm: Mapped[str] = mapped_column(String(16), default="llm")
+    task_order: Mapped[int] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    __table_args__ = (UniqueConstraint("experiment_id","task_code"),)
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("asn"))
+    experiment_id: Mapped[str] = mapped_column(ForeignKey("experiments.id"), index=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"), index=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    sequence_no: Mapped[int] = mapped_column(Integer, default=1)
+    condition_order: Mapped[int] = mapped_column(Integer, default=1)
+    condition: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(24), default="assigned")
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    __table_args__ = (UniqueConstraint("task_id","participant_id"),)
+
+class Trace(Base):
+    __tablename__ = "traces"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("trc"))
+    experiment_id: Mapped[str] = mapped_column(ForeignKey("experiments.id"), index=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"), index=True)
+    assignment_id: Mapped[str] = mapped_column(ForeignKey("assignments.id"), index=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    model_arm: Mapped[str] = mapped_column(String(16))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    client_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+
+class ChatRequest(Base):
+    __tablename__ = "chat_requests"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("req"))
+    trace_id: Mapped[str] = mapped_column(ForeignKey("traces.id"), index=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    prompt: Mapped[str] = mapped_column(Text)
+    response_text: Mapped[str] = mapped_column(Text, default="")
+    provider_model: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(24), default="running")
+    finish_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    ttft_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    itl_mean_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tpot_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    queue_time_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    e2e_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    response_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    response_chars: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    first_token_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+class Event(Base):
+    __tablename__ = "events"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("evt"))
+    trace_id: Mapped[str] = mapped_column(String(40), index=True)
+    request_id: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    participant_id: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    client_monotonic_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+
+class Questionnaire(Base):
+    __tablename__ = "questionnaires"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("qnr"))
+    trace_id: Mapped[str] = mapped_column(ForeignKey("traces.id"), index=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    instrument: Mapped[str] = mapped_column(String(40), index=True)
+    answers: Mapped[dict] = mapped_column(JSON)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class RubricScore(Base):
+    __tablename__ = "rubric_scores"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("rub"))
+    trace_id: Mapped[str] = mapped_column(ForeignKey("traces.id"), index=True)
+    scorer_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    criterion_scores: Mapped[dict] = mapped_column(JSON)
+    total_score: Mapped[float] = mapped_column(Float)
+    blinded: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ModelSnapshot(Base):
+    __tablename__ = "model_snapshots"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("mdl"))
+    experiment_id: Mapped[str] = mapped_column(ForeignKey("experiments.id", ondelete="CASCADE"), index=True)
+    arm: Mapped[str] = mapped_column(String(16))
+    
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="vllm")
+    model_id: Mapped[str] = mapped_column(String(240), nullable=False, default="unknown")
+    
+    repository: Mapped[str] = mapped_column(String(240))
+    revision: Mapped[str] = mapped_column(String(64))
+    engine_version: Mapped[str] = mapped_column(String(80))
+    config: Mapped[dict] = mapped_column(JSON)
+    config_sha256: Mapped[str] = mapped_column(String(64))
+    frozen_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    frozen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (UniqueConstraint("experiment_id","arm"),)
+    
+
+
+==========================================================================================
+FILE: app/schemas.py
+==========================================================================================
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+class LoginIn(BaseModel):
+    username: str = Field(min_length=2, max_length=120)
+    password: str = Field(min_length=1, max_length=256)
+
+class ParticipantCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=14, max_length=256)
+
+class ExperimentCreate(BaseModel):
+    name: str = Field(min_length=3, max_length=240)
+    description: str = Field(default="", max_length=5000)
+    seed: int = 20261117
+    ethics_approval_ref: str = Field(default="", max_length=240)
+    ethics_approved: bool = False
+
+class ConsentIn(BaseModel):
+    accepted: bool
+    consent_version: str = Field(min_length=1, max_length=40)
+
+class TaskSeedIn(BaseModel):
+    tasks: list[dict[str, Any]] = Field(min_length=1, max_length=50)
+
+class RandomizeIn(BaseModel):
+    participant_ids: list[str] = Field(min_length=1, max_length=1000)
+    model_arms: list[str] = ["llm", "slm"]
+    network_profiles: list[dict[str, Any]] = [
+        {"name":"baseline","latency_ms":0,"jitter_ms":0,"loss_pct":0,"bandwidth_mbps":0},
+        {"name":"moderate","latency_ms":100,"jitter_ms":20,"loss_pct":1,"bandwidth_mbps":50},
+        {"name":"high_delay","latency_ms":250,"jitter_ms":30,"loss_pct":1,"bandwidth_mbps":25},
+        {"name":"constrained","latency_ms":100,"jitter_ms":50,"loss_pct":3,"bandwidth_mbps":5}
+    ]
+
+class PrepareIn(BaseModel):
+    assignment_id: str
+    trace_id: str
+
+class ChatIn(BaseModel):
+    assignment_id: str
+    trace_id: str
+    prompt: str = Field(min_length=1, max_length=20000)
+    client_metadata: dict[str, Any] = Field(default_factory=dict)
+
+class EventIn(BaseModel):
+    trace_id: str
+    request_id: str | None = None
+    event_type: str = Field(min_length=2, max_length=100)
+    client_monotonic_ms: float | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+class QuestionnaireIn(BaseModel):
+    trace_id: str
+    instrument: str
+    answers: dict[str, Any]
+
+class RubricScoreIn(BaseModel):
+    trace_id: str
+    criterion_scores: dict[str, float]
+    blinded: bool = True
+
+
+class ModelFreezeIn(BaseModel):
+    models: list[dict[str, Any]] = Field(min_length=2, max_length=2)
+
+
+class EthicsApprovalIn(BaseModel):
+    approval_ref: str = Field(min_length=3, max_length=240)
+    approved: bool
+
+
+==========================================================================================
+FILE: app/db.py
+==========================================================================================
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from .config import settings
+
+engine = create_async_engine(settings.database_url, pool_pre_ping=True, pool_size=10, max_overflow=20)
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+
+class Base(DeclarativeBase):
+    pass
+
+async def get_db():
+    async with SessionLocal() as session:
+        yield session
+
+
+==========================================================================================
+FILE: app/config.py
+==========================================================================================
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env.production", extra="ignore")
+    app_env: str = "development"
+    app_name: str = "LLM QoE Lab"
+    database_url: str = "postgresql+asyncpg://qoe_app:change-me@localhost:5432/llm_qoe"
+    redis_url: str = "redis://localhost:6379/0"
+    jwt_secret: str = "development-only-change-this-secret"
+    access_token_minutes: int = 30
+    cookie_secure: bool = False
+    cors_origins: str = "http://localhost:5173"
+    jsonl_dir: str = "./data/events"
+    llm_base_url: str = "http://localhost:8001/v1"
+    llm_model: str = "llama-3.1-8b-instruct"
+    llm_model_repository: str = ""
+    llm_model_revision: str = ""
+    llm_api_key: str = ""
+    llm_provider: str = "vllm"
+
+    slm_base_url: str = "http://localhost:8002/v1"
+    slm_model: str = "qwen2.5-1.5b-instruct"
+    slm_model_repository: str = ""
+    slm_model_revision: str = ""
+    slm_api_key: str = ""
+    slm_provider: str = "vllm"
+
+    llm_max_model_len: int = 8192
+    llm_max_num_seqs: int = 16
+    slm_max_model_len: int = 4096
+    slm_max_num_seqs: int = 32
+    vllm_version: str = "0.34.0"
+    vllm_image_digest: str = ""
+    temperature: float = 0.0
+    top_p: float = 1.0
+    inference_seed: int = 42
+    inference_ca_bundle: str = ""
+    gateway_control_url: str = ""
+    gateway_token: str = ""
+    gateway_ca_bundle: str = ""
+    require_gateway: bool = False
+    default_model: str = "llm"
+    max_prompt_chars: int = 20000
+    max_output_tokens: int = 2048
+    rate_limit_per_minute: int = 30
+    consent_version: str = "1.0.0"
+    admin_bootstrap_username: str = "admin"
+    admin_bootstrap_password: str = ""
+
+    @field_validator("llm_provider", "slm_provider")
+    @classmethod
+    def validate_inference_provider(cls, value: str) -> str:
+        allowed = {
+            "vllm",
+            "llama_cpp",
+            "groq",
+            "gemini",
+            "openai_compatible",
+        }
+
+        provider = value.strip().lower()
+
+        if provider not in allowed:
+            raise ValueError(
+                f"Unsupported inference provider: {provider}. "
+                f"Allowed providers: {', '.join(sorted(allowed))}"
+            )
+
+        return provider
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def require_secret_in_production(cls, v, info):
+        if info.data.get("app_env") == "production" and (len(v) < 48 or "change" in v.lower()):
+            raise ValueError("JWT_SECRET must be a unique secret of at least 48 characters in production")
+        return v
+
+    @property
+    def allowed_origins(self):
+        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+
+@lru_cache
+def get_settings():
+    return Settings()
+
+settings = get_settings()
+
+
+==========================================================================================
+FILE: migrations/env.py
+==========================================================================================
+import asyncio
+from logging.config import fileConfig
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
+from alembic import context
+from app.db import Base
+from app import models
+from app.config import settings
+
+config=context.config
+config.set_main_option("sqlalchemy.url",settings.database_url.replace("%","%%"))
+if config.config_file_name: fileConfig(config.config_file_name)
+target_metadata=Base.metadata
+
+def run_migrations_offline():
+    context.configure(url=settings.database_url,target_metadata=target_metadata,literal_binds=True,dialect_opts={"paramstyle":"named"})
+    with context.begin_transaction(): context.run_migrations()
+
+def do_run_migrations(connection: Connection):
+    context.configure(connection=connection,target_metadata=target_metadata,compare_type=True)
+    with context.begin_transaction(): context.run_migrations()
+
+async def run_async_migrations():
+    connectable=async_engine_from_config(config.get_section(config.config_ini_section),prefix="sqlalchemy.",poolclass=pool.NullPool)
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
+
+def run_migrations_online():
+    asyncio.run(run_async_migrations())
+
+run_migrations_offline() if context.is_offline_mode() else run_migrations_online()
+
+
+==========================================================================================
+FILE: web/src/App.tsx
+==========================================================================================
+import { useEffect, useMemo, useState } from "react";
+import { Activity, ArrowRight, ClipboardList, LogOut, ShieldCheck, Users, Zap } from "lucide-react";
+
+type User={id:string;username:string;role:string;participant_code?:string;consent_at?:string|null;consent_version?:string|null};
+type Assignment={assignment_id:string;sequence:number;status:string;task_id:string;task_code:string;title:string;prompt:string;instructions:string;model_arm:string;network_profile:any};
+const API="/api";
+function csrf(){return document.cookie.split("; ").find(x=>x.startsWith("qoe_csrf="))?.split("=")[1]||""}
+async function api(path:string, init:RequestInit={}) {
+  const headers=new Headers(init.headers||{});
+  if(init.body) headers.set("Content-Type","application/json");
+  if(["POST","PATCH","PUT","DELETE"].includes((init.method||"GET").toUpperCase())) headers.set("X-CSRF-Token",decodeURIComponent(csrf()));
+  const r=await fetch(API+path,{...init,headers,credentials:"include"});
+  if(!r.ok){const d=await r.json().catch(()=>({detail:r.statusText}));throw new Error(d.detail||"Request failed")}
+  return r;
+}
+export default function App(){
+ const [user,setUser]=useState<User|null>(null),[username,setUsername]=useState(""),[password,setPassword]=useState("");
+ const [error,setError]=useState(""),[busy,setBusy]=useState(false),[tab,setTab]=useState("chat");
+ const [assignments,setAssignments]=useState<Assignment[]>([]),[selected,setSelected]=useState<Assignment|null>(null);
+ const [trace,setTrace]=useState(""),[prompt,setPrompt]=useState(""),[answer,setAnswer]=useState(""),[streaming,setStreaming]=useState(false);
+ const [qoe,setQoe]=useState<Record<string,number>>({}),[tlx,setTlx]=useState<Record<string,number>>({mental_demand:50,physical_demand:50,temporal_demand:50,performance:50,effort:50,frustration:50});
+ const [summary,setSummary]=useState<any>(null),[participants,setParticipants]=useState<any[]>([]),[deploymentStatus,setDeploymentStatus]=useState<any>(null);
+ const [newName,setNewName]=useState(""),[newPass,setNewPass]=useState("");
+ const [expName,setExpName]=useState("LLM QoE controlled study"),[experimentId,setExperimentId]=useState("");
+ const [eventCount,setEventCount]=useState(0),[liveMetrics,setLiveMetrics]=useState<any>(null),[rttHistory,setRttHistory]=useState<any[]>([]);
+ const [analytics,setAnalytics]=useState<any>(null);
+ const [networkProfiles,setNetworkProfiles]=useState<any[]>([
+  {name:"baseline",latency_ms:0,jitter_ms:0,loss_pct:0,bandwidth_mbps:0,word_delay_ms:0},
+  {name:"moderate",latency_ms:100,jitter_ms:25,loss_pct:2,bandwidth_mbps:50,word_delay_ms:0},
+  {name:"high_delay",latency_ms:250,jitter_ms:30,loss_pct:1,bandwidth_mbps:25,word_delay_ms:0},
+  {name:"constrained",latency_ms:100,jitter_ms:50,loss_pct:3,bandwidth_mbps:5,word_delay_ms:0}
+ ]);
+ const [activeProfile,setActiveProfile]=useState(0),[exportExperimentId,setExportExperimentId]=useState(""),[exportTaskId,setExportTaskId]=useState("");
+ const [scorers,setScorers]=useState<any[]>([]),[scorerName,setScorerName]=useState(""),[scorerPass,setScorerPass]=useState("");
+ const [scoring,setScoring]=useState<Record<string,Record<string,number>>>({});
+ const [consentInfo,setConsentInfo]=useState<any>(null),[consentChecked,setConsentChecked]=useState(false);
+ const [ethicsApprovalRef,setEthicsApprovalRef]=useState(""),[ethicsApproved,setEthicsApproved]=useState(false);
+
+ const qoeItems=[["overall_quality","Overall interaction quality"],["answer_relevance","Answer relevance"],["answer_completeness","Answer completeness"],["ease_of_interaction","Ease of interaction"],["response_clarity","Response clarity"],["interaction_satisfaction","Interaction satisfaction"]];
+ const tlxItems=[["mental_demand","Mental demand"],["physical_demand","Physical demand"],["temporal_demand","Temporal demand"],["performance","Performance"],["effort","Effort"],["frustration","Frustration"]];
+ async function refreshMe(){try{const r=await api("/auth/me");const u=await r.json();setUser(u)}catch{setUser(null)}}
+ useEffect(()=>{refreshMe()},[]);
+ useEffect(()=>{if(user?.role==="participant"&&user.consent_at&&user.consent_version===consentInfo?.version)loadAssignments();if(user?.role==="admin")loadAdmin();if(user?.role==="scorer")loadScorerQueue()},[user,consentInfo]);
+ useEffect(()=>{if(user?.role==="participant"&&(!user.consent_at||user.consent_version!==consentInfo?.version)){api("/protocol/consent").then(async r=>setConsentInfo(await r.json())).catch((e:any)=>setError(e.message))}},[user]);
+ useEffect(()=>{if(user?.role!=="participant"||!trace)return;let active=true;let timer:number|undefined;const sample=async()=>{const started=performance.now();try{const response=await fetch("/health/live",{cache:"no-store",credentials:"include"});if(!response.ok)throw new Error("probe failed");const rtt=Number((performance.now()-started).toFixed(2));if(active){setRttHistory(xs=>[...xs.slice(-29),{at:Date.now(),rtt_ms:rtt}]);logEvent(trace,"https_rtt_probe",{rtt_ms:rtt,probe_target:"same-origin health endpoint"});}}catch{} };sample();timer=window.setInterval(sample,5000);return()=>{active=false;if(timer!==undefined)window.clearInterval(timer)}},[user,trace]);
+ async function loadAssignments(){try{const r=await api("/participant/assignments");setAssignments(await r.json())}catch(e:any){setError(e.message)}}
+ async function loadAdmin(){try{const [s,p,d,a]=await Promise.all([api("/admin/summary"),api("/admin/participants"),api("/admin/deployment-status"),api("/admin/analytics")]);setSummary(await s.json());setParticipants(await p.json());setDeploymentStatus(await d.json());setAnalytics(await a.json())}catch(e:any){setError(e.message)}}
+ async function loadScorerQueue(){try{const r=await api("/scorer/queue");setScorers(await r.json())}catch(e:any){setError(e.message)}}
+
+ async function acceptConsent(){if(!consentInfo||!consentChecked)return;try{await api("/participant/consent",{method:"POST",body:JSON.stringify({accepted:true,consent_version:consentInfo.version})});setConsentChecked(false);await refreshMe()}catch(e:any){setError(e.message)}}
+ async function login(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");try{await api("/auth/login",{method:"POST",body:JSON.stringify({username,password})});await refreshMe()}catch(e:any){setError(e.message)}finally{setBusy(false)}}
+ async function logout(){await api("/auth/logout",{method:"POST"}).catch(()=>{});setUser(null);setAssignments([])}
+ async function withdraw(){if(!window.confirm("Withdraw from this study? Future study access will be disabled. Data retention/deletion follows the approved consent policy."))return;try{await api("/participant/withdraw",{method:"POST"});setUser(null);setAssignments([])}catch(e:any){setError(e.message)}}
+ async function startTask(a:Assignment){setSelected(a);setAnswer("");setLiveMetrics(null);setRttHistory([]);setPrompt(a.prompt);setQoe({});setTlx({mental_demand:50,physical_demand:50,temporal_demand:50,performance:50,effort:50,frustration:50});setTrace("");try{const r=await api("/participant/traces",{method:"POST",body:JSON.stringify({assignment_id:a.assignment_id,client_metadata:{userAgent:navigator.userAgent,language:navigator.language,screen:{width:screen.width,height:screen.height}}})});const d=await r.json();setTrace(d.trace_id);await logEvent(d.trace_id,"participant_task_opened",{task_code:a.task_code});}catch(e:any){setError(e.message)}}
+ async function logEvent(trace_id:string,event_type:string,payload:any={}){try{await api("/participant/events",{method:"POST",body:JSON.stringify({trace_id,event_type,payload,client_monotonic_ms:performance.now()})});setEventCount(x=>x+1)}catch{}}
+ async function sendPrompt(e:React.FormEvent){e.preventDefault();if(!selected||!trace||!prompt.trim())return;setAnswer("");setLiveMetrics(null);setStreaming(true);const clickStarted=performance.now();let prepareMs=0;let chatStarted=clickStarted;let firstChunkAt:number|null=null;let firstRenderPromise:Promise<number>|null=null;let firstRenderResolve:((value:number)=>void)|null=null;let receivedText="";const chunkTimes:number[]=[];const wordArrivalTimes:number[]=[];let serverMetrics:any=null;let pacedBuffer="";let displayChain:Promise<void>=Promise.resolve();const wordDelay=Number(selected.network_profile?.word_delay_ms||0);const appendDisplay=(text:string)=>{if(wordDelay>0)wordArrivalTimes.push(performance.now());setAnswer(x=>x+text);if(firstRenderResolve){requestAnimationFrame(()=>{firstRenderResolve?.(performance.now());firstRenderResolve=null})}};const enqueuePaced=(text:string,final=false)=>{pacedBuffer+=text;const matches=pacedBuffer.match(/\S+\s+/g)||[];let consumed=matches.join("");if(final&&pacedBuffer.slice(consumed.length))consumed+=pacedBuffer.slice(consumed.length);pacedBuffer=pacedBuffer.slice(consumed.length);const tokens=final&&consumed?consumed.match(/\S+\s*|\s+/g)||[consumed]:matches;for(const token of tokens){displayChain=displayChain.then(()=>new Promise<void>(resolve=>window.setTimeout(()=>{appendDisplay(token);resolve()},wordDelay)))}};
+  let prepared=false;
+  try{
+   const prepareStarted=performance.now();
+   await api("/participant/prepare",{method:"POST",body:JSON.stringify({assignment_id:selected.assignment_id,trace_id:trace})});
+   prepared=true;prepareMs=performance.now()-prepareStarted;chatStarted=performance.now();
+   const r=await api("/chat/stream",{method:"POST",body:JSON.stringify({assignment_id:selected.assignment_id,trace_id:trace,prompt,client_metadata:{profile_prepare_ms:prepareMs}})});
+   const reader=r.body!.getReader(),decoder=new TextDecoder();let buffer="";
+   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()||"";for(const b of blocks){const event=b.match(/^event:\s*(.+)$/m)?.[1];const data=b.match(/^data:\s*(.+)$/m)?.[1];if(!data)continue;const d=JSON.parse(data);if(event==="delta"){const now=performance.now();if(firstChunkAt===null){firstChunkAt=now;firstRenderPromise=new Promise(resolve=>{firstRenderResolve=resolve})}chunkTimes.push(now);receivedText+=d.text;if(wordDelay>0)enqueuePaced(d.text);else appendDisplay(d.text)}if(event==="completed")serverMetrics=d;if(event==="error")throw new Error(d.error_code||"Stream failed")}}
+   const networkStreamFinished=performance.now();if(wordDelay>0){enqueuePaced("",true);await displayChain}const streamFinished=performance.now();const firstRenderAt=firstRenderPromise?await firstRenderPromise:null;
+   const gaps=chunkTimes.slice(1).map((v,i)=>v-chunkTimes[i]);
+   const wordGaps=wordArrivalTimes.slice(1).map((v,i)=>v-wordArrivalTimes[i]);
+   const metricSnapshot={ttft_ms:firstChunkAt===null?null:Number((firstChunkAt-chatStarted).toFixed(2)),network_stream_duration_ms:Number((networkStreamFinished-chatStarted).toFixed(2)),presentation_complete_ms:Number((streamFinished-chatStarted).toFixed(2)),word_pacing_ms:Number((streamFinished-networkStreamFinished).toFixed(2)),stream_event_count:chunkTimes.length,mean_inter_event_gap_ms:gaps.length?Number((gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(2)):null,word_arrival_count:wordArrivalTimes.length,mean_word_arrival_gap_ms:wordGaps.length?Number((wordGaps.reduce((a,b)=>a+b,0)/wordGaps.length).toFixed(2)):null,response_chars:receivedText.length,provider_output_tokens:serverMetrics?.output_tokens??null,server_chunk_count:serverMetrics?.chunk_count??null,response_bytes:serverMetrics?.response_bytes??null,finish_reason:serverMetrics?.finish_reason??null,server_e2e_latency_ms:serverMetrics?.server_e2e_latency_ms??null,queue_time_ms:serverMetrics?.queue_time_ms??null};
+   setLiveMetrics(metricSnapshot);
+   if(wordArrivalTimes.length)await logEvent(trace,"participant_word_arrival_summary",{configured_word_delay_ms:wordDelay,word_arrival_count:wordArrivalTimes.length,mean_word_arrival_gap_ms:metricSnapshot.mean_word_arrival_gap_ms,measured_word_arrival_gaps_ms:wordGaps});
+   await logEvent(trace,"participant_submit",{prompt_chars:prompt.length,profile_prepare_ms:prepareMs,client_submit_monotonic_ms:clickStarted,client_stream_started_monotonic_ms:chatStarted});
+   await logEvent(trace,"participant_rendering_summary",{
+    profile_prepare_ms:prepareMs,client_chat_ttft_ms:firstChunkAt===null?null:firstChunkAt-chatStarted,
+    client_first_render_frame_ms:firstRenderAt===null?null:firstRenderAt-chatStarted,
+    client_click_to_first_chunk_ms:firstChunkAt===null?null:firstChunkAt-clickStarted,
+    rendered_stream_event_count:chunkTimes.length,client_first_chunk_monotonic_ms:firstChunkAt,
+    client_first_render_monotonic_ms:firstRenderAt,
+    mean_inter_render_event_gap_ms:gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:null
+   });
+   await logEvent(trace,"participant_stream_completed",{client_chat_e2e_ms:streamFinished-chatStarted,
+    client_click_to_completion_ms:streamFinished-clickStarted,client_stream_completed_monotonic_ms:streamFinished,
+    server_metrics:serverMetrics||{}});
+  }catch(e:any){setError(e.message);if(prepared)await logEvent(trace,"participant_stream_failed",{error:e.message}).catch(()=>{})}
+  finally{setStreaming(false);loadAssignments()}}
+ async function submitQuestionnaires(){if(!trace)return;try{await api("/participant/questionnaires",{method:"POST",body:JSON.stringify({trace_id:trace,instrument:"p852_aligned_supplemental",answers:qoe})});await api("/participant/questionnaires",{method:"POST",body:JSON.stringify({trace_id:trace,instrument:"nasa_tlx_raw",answers:tlx})});await logEvent(trace,"participant_questionnaires_completed");setError("Questionnaires submitted successfully.")}catch(e:any){setError(e.message)}}
+ async function createScorer(){try{await api("/admin/scorers",{method:"POST",body:JSON.stringify({username:scorerName,password:scorerPass})});setScorerName("");setScorerPass("");setError("Independent scorer account created.")}catch(e:any){setError(e.message)}}
+ async function submitRubric(trace_id:string,criteria:any[]){try{const criterion_scores=Object.fromEntries(criteria.map(c=>[c.criterion,scoring[trace_id]?.[c.criterion]??0]));await api("/admin/rubric-scores",{method:"POST",body:JSON.stringify({trace_id,criterion_scores,blinded:true})});setError("Rubric score submitted.");loadScorerQueue()}catch(e:any){setError(e.message)}}
+ async function createParticipant(){try{await api("/admin/participants",{method:"POST",body:JSON.stringify({username:newName,password:newPass})});setNewName("");setNewPass("");loadAdmin()}catch(e:any){setError(e.message)}}
+ async function createExperiment(){try{const r=await api("/admin/experiments",{method:"POST",body:JSON.stringify({name:expName,description:"Controlled comparison of LLM and SLM chatbot experience under network impairment profiles.",seed:20261117,ethics_approval_ref:ethicsApprovalRef,ethics_approved:ethicsApproved})});const d=await r.json();setExperimentId(d.id);await api(`/admin/experiments/${d.id}/seed-tasks`,{method:"POST"});setError("Experiment created and 12 controlled tasks seeded.")}catch(e:any){setError(e.message)}}
+ async function recordEthicsApproval(){try{await api(`/admin/experiments/${experimentId}/ethics-approval`,{method:"POST",body:JSON.stringify({approval_ref:ethicsApprovalRef,approved:true})});setEthicsApproved(true);setError("Institutional ethics approval reference recorded.")}catch(e:any){setError(e.message)}}
+ async function freezeModels(){try{const r=await api(`/admin/experiments/${experimentId}/model-freeze`,{method:"POST",body:JSON.stringify({models:[{arm:"llm"},{arm:"slm"}]})});const d=await r.json();setError("Configured model identities frozen: "+d.frozen.map((x:any)=>`${x.arm}=${x.provider}/${x.model_id}`).join(" · "))}catch(e:any){setError(e.message)}}
+ async function resetGateway(){try{const r=await api("/admin/gateway/reset",{method:"POST"});const d=await r.json();setError(d.reset?"Gateway reset to baseline profile.":"No gateway is configured; no network qdisc was changed.")}catch(e:any){setError(e.message)}}
+ async function randomize(){try{const profiles=deploymentStatus?.network_impairment_enabled?networkProfiles:networkProfiles.filter((p:any)=>p.latency_ms===0&&p.jitter_ms===0&&p.loss_pct===0&&p.bandwidth_mbps===0);if(!profiles.length)throw new Error("Gateway is disabled. Keep at least one baseline-only profile.");const body:any={participant_ids:participants.map(p=>p.id),model_arms:["llm","slm"],network_profiles:profiles};const r=await api(`/admin/experiments/${experimentId}/randomize`,{method:"POST",body:JSON.stringify(body)});const d=await r.json();setError(`${d.created_assignments} assignments randomized across ${profiles.length} network profile(s).`)}catch(e:any){setError(e.message)}}
+ const rttValues=rttHistory.map((p:any)=>Number(p.rtt_ms)).filter((v:number)=>Number.isFinite(v));
+  const rttMean=rttValues.length?rttValues.reduce((a:number,b:number)=>a+b,0)/rttValues.length:0;
+  const rttVariation=rttValues.length?Math.sqrt(rttValues.reduce((sum:number,v:number)=>sum+Math.pow(v-rttMean,2),0)/rttValues.length):0;
+  if(!user)return <main className="login"><div className="login-card"><div className="brand"><Activity/><span>LLM QoE Lab</span></div><p className="eyebrow">RESEARCH PLATFORM / AUTHENTICATED ACCESS</p><h1>Sign in to your workspace</h1><form onSubmit={login}><label>Username<input value={username} onChange={e=>setUsername(e.target.value)} autoComplete="username" required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" required/></label><button disabled={busy}>{busy?"Signing in":"Continue"} <ArrowRight size={16}/></button></form>{error&&<p className="error">{error}</p>}<small>Participant and administrator accounts are issued by the study administrator.</small></div></main>;
+ return <div className="shell"><aside className="sidebar"><div className="brand"><Activity/><span>LLM QoE Lab</span></div><p className="eyebrow">EXPERIMENT WORKSPACE</p>{user.role==="admin"? <><button className={tab==="admin"?"nav active":"nav"} onClick={()=>setTab("admin")}><ShieldCheck/> Control centre</button><button className={tab==="participants"?"nav active":"nav"} onClick={()=>setTab("participants")}><Users/> Participants</button><button className={tab==="network"?"nav active":"nav"} onClick={()=>setTab("network")}><Activity/> Network controls</button><button className={tab==="analytics"?"nav active":"nav"} onClick={()=>setTab("analytics")}><Zap/> Research analytics</button><button className={tab==="exports"?"nav active":"nav"} onClick={()=>setTab("exports")}><ClipboardList/> Data exports</button></>:<button className="nav active"><ClipboardList/> My tasks</button>}<div className="side-bottom"><span>{user.username} · {user.role}</span><button className="nav" onClick={logout}><LogOut/> Sign out</button></div></aside>
+ <main className="content"><header><div><p className="eyebrow">LLM / SLM EXPERIMENTAL ENVIRONMENT</p><h1>{user.role==="admin"?(tab==="participants"?"Participant management":tab==="network"?"Network experiment controls":tab==="analytics"?"Research analytics":tab==="exports"?"Research data exports":"Research control centre"):"Participant study session"}</h1></div><div className="header-actions"><div className="status"><span className="dot"/> Authenticated</div>{user.role==="participant"&&<button className="secondary" onClick={withdraw}>Withdraw</button>}<button className="secondary" onClick={logout}><LogOut size={15}/> Sign out</button></div></header>
+ {error&&<div className="notice" onClick={()=>setError("")}>{error}</div>}
+ {user.role==="admin"&&tab==="admin"&&<><section className="stats">{Object.entries(summary||{}).map(([k,v])=><div className="stat" key={k}><span>{k.replaceAll("_"," ")}</span><strong>{String(v)}</strong></div>)}</section><section className="panel"><div className="panel-head"><div><p className="eyebrow">WP4 / PROTOCOL</p><h2>Create controlled experiment</h2></div><Zap/></div><div className="inline"><input value={expName} onChange={e=>setExpName(e.target.value)} aria-label="Experiment name"/><input value={ethicsApprovalRef} onChange={e=>setEthicsApprovalRef(e.target.value)} placeholder="Institutional ethics approval reference"/><label className="check"><input type="checkbox" checked={ethicsApproved} onChange={e=>setEthicsApproved(e.target.checked)}/> Formal ethics approval has been granted</label><button onClick={createExperiment}>Create + seed 12 tasks</button></div><p className="muted">Do not mark approved until the institution has issued formal approval. Randomisation is blocked without an approval reference and participant consent.</p>{experimentId&&<><div className="notice">Experiment ID: {experimentId}</div><div className="inline"><button onClick={recordEthicsApproval} disabled={!ethicsApprovalRef.trim()}>Record formal ethics approval</button></div><h3>Freeze configured inference models</h3><p className="muted">Provider, model identifier and runtime provenance are read from the server-side deployment configuration. The browser cannot override model identity.</p><div className="inline"><button onClick={freezeModels}>Freeze server-configured LLM + SLM</button><button onClick={randomize}>Randomize participant assignments</button></div></>}<p className="muted">Creates a versioned experiment and seeds the 12 task/rubric templates. Randomization counterbalances model arms and network profiles across task order.</p></section><section className="panel"><div className="panel-head"><h2>Deployment readiness</h2><button onClick={resetGateway}>Reset gateway to baseline</button></div><div className="readiness"><span>PostgreSQL persistence</span><b>API health checked at runtime</b><span>LLM inference</span><b>{deploymentStatus?.llm_provider||"—"} / {deploymentStatus?.llm_model||"not configured"}</b><span>SLM inference</span><b>{deploymentStatus?.slm_provider||"—"} / {deploymentStatus?.slm_model||"not configured"}</b><span>Network gateway</span><b>{deploymentStatus?.network_impairment_enabled?"Controller configured; verify participant path and qdisc counters":"Disabled — baseline-only until the participant path and gateway are verified"}</b><span>Ethics approval</span><b>External institutional approval required</b></div></section></>}
+ {user.role==="admin"&&tab==="network"&&<><section className="panel"><div className="panel-head"><div><p className="eyebrow">CONTROLLED CONDITIONS</p><h2>Network profile builder</h2></div><span className="chip">{deploymentStatus?.network_mode||"checking"}</span></div><p className="muted">Profiles are stored with randomized assignments. The gateway applies them when a participant prepares a task. The current gateway shapes its selected interface globally; it is not participant-isolated. Use only on a dedicated, institutionally approved lab path. Word delay is application-level pacing, not network latency.</p><div className="inline">{networkProfiles.map((p:any,i:number)=><button key={p.name} className={activeProfile===i?"":"secondary"} onClick={()=>setActiveProfile(i)}>{p.name}</button>)}</div>{networkProfiles[activeProfile]&&<div className="profile-grid"><label>Profile name<input value={networkProfiles[activeProfile].name} onChange={e=>setNetworkProfiles(xs=>xs.map((p,i)=>i===activeProfile?{...p,name:e.target.value}:p))}/></label>{([["latency_ms","Latency (ms)",0,2000,10],["jitter_ms","Jitter (ms)",0,500,5],["loss_pct","Packet loss (%)",0,30,0.1],["bandwidth_mbps","Bandwidth cap (Mbps)",0,1000,5],["word_delay_ms","Word intra-arrival delay (ms)",0,10000,50]] as any[]).map(([key,label,min,max,step])=><label className="slider-field" key={key}>{label}<strong>{networkProfiles[activeProfile][key]??0}</strong><input type="range" min={min} max={max} step={step} value={networkProfiles[activeProfile][key]??0} onChange={e=>setNetworkProfiles(xs=>xs.map((p,i)=>i===activeProfile?{...p,[key]:Number(e.target.value)}:p))}/></label>)}</div>}<div className="inline"><button onClick={()=>setNetworkProfiles(xs=>[...xs,{name:`profile_${xs.length+1}`,latency_ms:0,jitter_ms:0,loss_pct:0,bandwidth_mbps:0,word_delay_ms:0}])}>Add profile</button><button className="secondary" onClick={()=>{if(networkProfiles.length>1){setNetworkProfiles(xs=>xs.filter((_:any,i:number)=>i!==activeProfile));setActiveProfile(i=>Math.max(0,Math.min(i,networkProfiles.length-2)))}}}>Remove selected</button><button onClick={randomize} disabled={!experimentId}>Save conditions through participant randomization</button></div><p className="muted">Gateway status: {deploymentStatus?.network_impairment_enabled?"reachable; still verify the participant traffic path and qdisc counters":"disabled or unreachable. Only baseline profiles can be randomized."}</p>{deploymentStatus?.gateway_status_error&&<p className="error">Gateway status check failed: {deploymentStatus.gateway_status_error}</p>}{deploymentStatus?.gateway_status&&<pre className="gateway-output">{JSON.stringify(deploymentStatus.gateway_status,null,2)}</pre>}</section><section className="panel"><h2>Network measurement interpretation</h2><div className="readiness"><span>Configured latency / jitter / loss / bandwidth</span><b>Assignment condition metadata</b><span>Measured HTTPS RTT</span><b>Application-level probe, not packet jitter</b><span>Packet counters</span><b>Gateway counters; verify request-level deltas</b><span>Word delay</span><b>Client presentation pacing, not network shaping</b></div></section></>}
+{user.role==="admin"&&tab==="analytics"&&<><section className="stats">{Object.entries(analytics?.summary||{}).map(([k,v])=><div className="stat" key={k}><span>{k.replaceAll("_"," ")}</span><strong>{String(v??"—")}</strong></div>)}</section><section className="panel"><div className="panel-head"><h2>Performance overview</h2><button className="secondary" onClick={loadAdmin}>Refresh metrics</button></div><p className="muted">Server TTFT currently includes API admission-queue wait. The output-rate estimate divides recorded output tokens by end-to-end duration; it is not pure model-generation throughput. {analytics?.measurement_note||""}</p><div className="metric-grid">{[["Mean TTFT",analytics?.mean_ttft_ms,"ms"],["Mean end-to-end",analytics?.mean_e2e_ms,"ms"],["Estimated output rate",analytics?.mean_tokens_per_second,"tokens/s"],["Mean HTTPS RTT",analytics?.mean_https_rtt_ms,"ms"],["HTTPS RTT variation",analytics?.https_rtt_variation_sd_ms,"ms SD"],["RTT probe samples",analytics?.https_rtt_probe_samples,""],["Completed requests",analytics?.completed_requests,""]].map(([label,value,unit]:any)=><div className="metric" key={label}><span>{label}</span><b>{value==null?"—":Number(value).toFixed(2)} {unit}</b></div>)}</div><h3>Network-condition comparison</h3><div className="comparison-bars">{(analytics?.by_network||[]).map((x:any)=><div className="comparison-row" key={`bar-${x.condition}`}><b>{x.condition}</b><div><small>TTFT · {x.mean_ttft_ms??"—"} ms</small><div className="bar-track"><i title={`Mean TTFT ${x.mean_ttft_ms??"not available"} ms`} style={{width:`${Math.min(100,Number(x.mean_ttft_ms||0)/Math.max(1,...(analytics?.by_network||[]).map((v:any)=>Number(v.mean_ttft_ms||0)))*100)}%`}}/></div></div><div><small>E2E · {x.mean_e2e_ms??"—"} ms</small><div className="bar-track"><i title={`Mean E2E ${x.mean_e2e_ms??"not available"} ms`} style={{width:`${Math.min(100,Number(x.mean_e2e_ms||0)/Math.max(1,...(analytics?.by_network||[]).map((v:any)=>Number(v.mean_e2e_ms||0)))*100)}%`}}/></div></div></div>)}</div><div className="table-wrap"><table><thead><tr><th>Condition</th><th>Requests</th><th>Mean TTFT (ms)</th><th>Mean E2E (ms)</th><th>Mean output tok/s</th></tr></thead><tbody>{(analytics?.by_network||[]).map((x:any)=><tr key={x.condition}><td>{x.condition}</td><td>{x.requests}</td><td>{x.mean_ttft_ms??"—"}</td><td>{x.mean_e2e_ms??"—"}</td><td>{x.mean_tokens_per_second??"—"}</td></tr>)}</tbody></table></div><h3>QoE response distribution</h3><div className="rating-bars">{Object.entries(analytics?.qoe_distribution||{}).map(([k,v]:any)=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div></section></>}
+{user.role==="admin"&&tab==="exports"&&<section className="panel"><p className="eyebrow">RESEARCH DATA</p><h2>Export study records</h2><p className="muted">Downloads use the authenticated admin session. Participant identifiers are pseudonymous codes; review consent and institutional data-handling requirements before sharing.</p><div className="inline"><input placeholder="Optional experiment ID filter" value={exportExperimentId} onChange={e=>setExportExperimentId(e.target.value)}/><input placeholder="Optional task ID filter" value={exportTaskId} onChange={e=>setExportTaskId(e.target.value)}/></div><div className="export-grid"><a href="/api/admin/export/requests.csv">Download request telemetry CSV</a><a href="/api/admin/export/events.jsonl">Download chronological event ledger JSONL</a><a href="/api/admin/export/study.json">Download complete study JSON</a><a href={`/api/admin/export/study.xlsx${exportExperimentId||exportTaskId?`?${[exportExperimentId?`experiment_id=${encodeURIComponent(exportExperimentId)}`:"",exportTaskId?`task_id=${encodeURIComponent(exportTaskId)}`:""].filter(Boolean).join("&")}`:""}`}>Download filtered research workbook (Excel)</a></div><h3>Workbook contents</h3><div className="readiness"><span>Requests</span><b>TTFT, ITL, TPOT, duration, output tokens, chunks, bytes and finish reason</b><span>Events</span><b>Chronological event ledger and payloads</b><span>Questionnaires</span><b>Participant QoE and NASA-TLX answers</b><span>Manifest</span><b>Export time, scope and row counts</b></div></section>}
+{user.role==="admin"&&tab==="participants"&&<section className="panel"><h2>Create participant account</h2><div className="inline"><input placeholder="Username" value={newName} onChange={e=>setNewName(e.target.value)}/><input placeholder="Temporary password (14+ chars)" type="password" value={newPass} onChange={e=>setNewPass(e.target.value)}/><button onClick={createParticipant}>Create</button></div><h3>Independent scorer account</h3><div className="inline"><input placeholder="Scorer username" value={scorerName} onChange={e=>setScorerName(e.target.value)}/><input placeholder="Scorer password (14+ chars)" type="password" value={scorerPass} onChange={e=>setScorerPass(e.target.value)}/><button onClick={createScorer}>Create scorer</button></div><h3>Participants ({participants.length})</h3>{participants.map(p=><div className="person" key={p.id}><span>{p.username} · {p.participant_code}</span><small>{p.active?"Active":"Inactive"}</small></div>)}</section>}
+ {user.role==="scorer"&&<section className="panel"><h2>Blinded response scoring queue</h2>{scorers.map(item=><div className="panel" key={item.trace_id}><p className="eyebrow">{item.task_code} · {item.task_title} · {item.trace_id}</p><div className="answer">{item.response_text||"No response"}</div>{item.rubric.map((c:any)=><label className="rating" key={c.criterion}>{c.criterion} · {c.weight}%<input type="number" min="0" max="100" value={scoring[item.trace_id]?.[c.criterion]??""} onChange={e=>setScoring(x=>({...x,[item.trace_id]:{...x[item.trace_id],[c.criterion]:Number(e.target.value)}}))}/></label>)}<button onClick={()=>submitRubric(item.trace_id,item.rubric)}>Submit blinded score</button></div>)}</section>}
+ {user.role==="participant"&&(!user.consent_at||user.consent_version!==consentInfo?.version)&&<section className="panel consent-panel"><p className="eyebrow">RESEARCH PARTICIPATION</p><h2>{consentInfo?.title||"Study consent"}</h2><p>{consentInfo?.summary||"Loading the approved study information..."}</p><p className="muted">Consent version: {consentInfo?.version||"—"}. This on-screen summary is not a substitute for the institution-approved participant information sheet and consent form.</p><label className="check"><input type="checkbox" checked={consentChecked} onChange={e=>setConsentChecked(e.target.checked)}/> I have read the approved participant information and voluntarily agree to participate.</label><button disabled={!consentChecked||!consentInfo} onClick={acceptConsent}>Record consent and continue</button></section>}
+ {user.role==="participant"&&user.consent_at&&user.consent_version===consentInfo?.version&&<div className="participant-grid"><section className="panel tasks"><div className="panel-head"><div><p className="eyebrow">ASSIGNED PROTOCOL</p><h2>Your controlled tasks</h2></div><span>{assignments.length} assigned</span></div>{assignments.map(a=><button className={`task ${selected?.assignment_id===a.assignment_id?"selected":""}`} key={a.assignment_id} onClick={()=>startTask(a)}><span className="task-num">{String(a.sequence).padStart(2,"0")}</span><span><b>{a.title}</b><small>{a.task_code} · {a.status}</small></span><ArrowRight/></button>)}</section><section className="panel chat"><div className="panel-head"><div><p className="eyebrow">LIVE STREAMING / {selected?.model_arm?.toUpperCase()||"NO TASK"}</p><h2>{selected?.title||"Select a task to begin"}</h2></div><span className="chip">{selected?.network_profile?.name||"—"}</span></div>{selected&&<><p className="muted">{selected.instructions}</p><form onSubmit={sendPrompt}><label>Task prompt<textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onFocus={()=>logEvent(trace,"prompt_editor_focused")} onBlur={()=>logEvent(trace,"prompt_editor_blurred",{prompt_chars:prompt.length})} rows={4}/></label><button disabled={streaming}>{streaming?"Receiving response…":"Send prompt"}</button></form><div className="answer"><div className="answer-head">AI response <small>{streaming?"Streaming":answer?"Complete":"Waiting"}</small></div>{answer||<span className="muted">The streamed answer will appear here.</span>}</div>{liveMetrics&&<div className="metric-grid compact">{[["Client TTFT",liveMetrics.ttft_ms,"ms"],["Network stream duration",liveMetrics.network_stream_duration_ms,"ms"],["Presentation complete",liveMetrics.presentation_complete_ms,"ms"],["Word pacing",liveMetrics.word_pacing_ms,"ms"],["Stream events",liveMetrics.stream_event_count,""],["Mean event gap",liveMetrics.mean_inter_event_gap_ms,"ms"],["Word arrivals",liveMetrics.word_arrival_count,""],["Mean word gap",liveMetrics.mean_word_arrival_gap_ms,"ms"],["Provider output tokens",liveMetrics.provider_output_tokens,""],["Server chunk count",liveMetrics.server_chunk_count,""],["Response bytes",liveMetrics.response_bytes,"B"],["Server queue wait",liveMetrics.queue_time_ms,"ms"],["Finish reason",liveMetrics.finish_reason,""]].map(([label,value,unit]:any)=><div className="metric" key={label}><span>{label}</span><b>{value??"—"} {unit}</b></div>)}</div>}{rttHistory.length>0&&<div className="panel probe-panel"><div className="panel-head"><h3>Measured HTTPS RTT to lab server</h3><span className="chip">{rttHistory[rttHistory.length-1].rtt_ms} ms</span></div><div className="rtt-bars">{rttHistory.map((p:any,i:number)=><div key={`${p.at}-${i}`} title={`${p.rtt_ms} ms`} style={{height:`${Math.max(6,Math.min(100,p.rtt_ms/Math.max(1,...rttHistory.map((x:any)=>x.rtt_ms))*100))}%`}}/>)}</div><small className="muted">Browser-to-lab HTTPS RTT: mean {rttMean.toFixed(2)} ms; standard deviation {rttVariation.toFixed(2)} ms. This is not packet-level jitter or RTT to the LLM provider.</small></div>}{!streaming&&answer&&<><h3>QoE questionnaire</h3>{qoeItems.map(([k,label])=><label className="rating" key={k}>{label}<select value={qoe[k]||""} onChange={e=>setQoe(x=>({...x,[k]:Number(e.target.value)}))}><option value="">Select 1–5</option>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}</option>)}</select></label>)}<h3>NASA-TLX workload</h3>{tlxItems.map(([k,label])=><label className="rating" key={k}>{label}<input type="range" min="0" max="100" step="5" value={tlx[k]??50} onChange={e=>setTlx(x=>({...x,[k]:Number(e.target.value)}))}/><b>{tlx[k]??50}</b></label>)}<button onClick={submitQuestionnaires} disabled={qoeItems.some(([k])=>!qoe[k])}>Submit questionnaires</button></>}</>}</section></div>}
+ <footer><span>Trace events captured in this session: {eventCount}</span><span>Protocol instruments are study configuration, not ethics approval.</span></footer></main></div>
+}
+
+
+==========================================================================================
+MIGRATION FILES
+==========================================================================================
+
+--- migrations/versions/0001_initial.py ---
+from alembic import op
+from app.db import Base
+from app import models
+
+revision = "0001_initial"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    Base.metadata.create_all(bind=op.get_bind())
+
+def downgrade():
+    Base.metadata.drop_all(bind=op.get_bind())
+
+--- migrations/versions/0002_provider_model_metadata.py ---
+
+from alembic import op
+import sqlalchemy as sa
+
+
+revision = "0002_provider_model_metadata"
+down_revision = "0001_initial"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+
+    table_name = "model_snapshots"
+
+    if table_name not in inspector.get_table_names():
+        raise RuntimeError(
+            "model_snapshots table does not exist. "
+            "Run the initial migration before this migration."
+        )
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns(table_name)
+    }
+
+    # Add provider metadata when the database does not already have it.
+    if "provider" not in existing_columns:
+        op.add_column(
+            table_name,
+            sa.Column(
+                "provider",
+                sa.String(length=32),
+                nullable=False,
+                server_default="vllm",
+            ),
+        )
+
+    if "model_id" not in existing_columns:
+        op.add_column(
+            table_name,
+            sa.Column(
+                "model_id",
+                sa.String(length=240),
+                nullable=False,
+                server_default="unknown",
+            ),
+        )
+
+    # Preserve useful model identifiers for records created before
+    # provider-neutral metadata was introduced.
+    op.execute(
+        sa.text(
+            """
+            UPDATE model_snapshots
+            SET model_id = repository
+            WHERE model_id = 'unknown'
+              AND repository IS NOT NULL
+              AND repository <> ''
+            """
+        )
+    )
+
+    # Remove database-level defaults. New records should obtain their
+    # defaults from the SQLAlchemy model definition.
+    inspector = sa.inspect(connection)
+    columns = {
+        column["name"]: column
+        for column in inspector.get_columns(table_name)
+    }
+
+    for column_name in ("provider", "model_id"):
+        column = columns.get(column_name)
+
+        if column and column.get("default") is not None:
+            op.alter_column(
+                table_name,
+                column_name,
+                server_default=None,
+            )
+
+
+def downgrade():
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+
+    table_name = "model_snapshots"
+
+    if table_name not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns(table_name)
+    }
+
+    # Drop only columns introduced by this migration.
+    if "model_id" in existing_columns:
+        op.drop_column(table_name, "model_id")
+
+    if "provider" in existing_columns:
+        op.drop_column(table_name, "provider")

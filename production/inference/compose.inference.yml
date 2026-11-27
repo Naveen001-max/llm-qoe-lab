@@ -1,0 +1,104 @@
+name: llm-qoe-inference
+services:
+  llm:
+    image: ${VLLM_IMAGE:?Set immutable VLLM_IMAGE digest}
+    container_name: qoe-llm
+    command:
+      - --model
+      - ${LLM_MODEL_ID:?Set immutable Hugging Face model ID}
+      - --served-model-name
+      - ${LLM_MODEL_ALIAS:?Set served alias}
+      - --revision
+      - ${LLM_MODEL_REVISION:?Set immutable commit SHA}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --max-model-len
+      - ${LLM_MAX_MODEL_LEN:-8192}
+      - --max-num-seqs
+      - ${LLM_MAX_NUM_SEQS:-16}
+      - --no-enable-prefix-caching
+      - --no-enable-extensible-kv-cache
+      - --block-size
+      - "16"
+      - --disable-log-requests
+      - --api-key
+      - ${LLM_API_KEY:?Set LLM_API_KEY}
+      - --dtype
+      - auto
+      - --gpu-memory-utilization
+      - "0.90"
+      - --ssl-certfile
+      - /run/secrets/inference.crt
+      - --ssl-keyfile
+      - /run/secrets/inference.key
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    ports: ["${LLM_BIND_IP:-127.0.0.1}:8001:8000"]
+    ipc: host
+    shm_size: 16gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${LLM_GPU_ID:-0}"]
+              capabilities: [gpu]
+    volumes: ["hf-cache:/root/.cache/huggingface", "./secrets:/run/secrets:ro"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  slm:
+    image: ${VLLM_IMAGE:?Set immutable VLLM_IMAGE digest}
+    container_name: qoe-slm
+    command:
+      - --model
+      - ${SLM_MODEL_ID:?Set immutable Hugging Face model ID}
+      - --served-model-name
+      - ${SLM_MODEL_ALIAS:?Set served alias}
+      - --revision
+      - ${SLM_MODEL_REVISION:?Set immutable commit SHA}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --max-model-len
+      - ${SLM_MAX_MODEL_LEN:-4096}
+      - --max-num-seqs
+      - ${SLM_MAX_NUM_SEQS:-32}
+      - --no-enable-prefix-caching
+      - --no-enable-extensible-kv-cache
+      - --block-size
+      - "16"
+      - --disable-log-requests
+      - --api-key
+      - ${SLM_API_KEY:?Set SLM_API_KEY}
+      - --dtype
+      - auto
+      - --gpu-memory-utilization
+      - "0.90"
+      - --ssl-certfile
+      - /run/secrets/inference.crt
+      - --ssl-keyfile
+      - /run/secrets/inference.key
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    ports: ["${SLM_BIND_IP:-127.0.0.1}:8002:8000"]
+    ipc: host
+    shm_size: 8gb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${SLM_GPU_ID:-1}"]
+              capabilities: [gpu]
+    volumes: ["hf-cache:/root/.cache/huggingface", "./secrets:/run/secrets:ro"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  hf-cache:

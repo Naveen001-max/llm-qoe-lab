@@ -1,0 +1,13 @@
+{$PUBLIC_DOMAIN} {
+    @outside not remote_ip 10.30.0.1
+    respond @outside "Access is restricted to clients routed through the experiment gateway." 403
+
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "same-origin"
+        X-Frame-Options "DENY"
+    }
+    reverse_proxy web:80
+}

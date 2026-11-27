@@ -1,0 +1,6 @@
+{
+  "image_tag": "vllm/vllm-openai:v0.34.0",
+  "immutable_image": "vllm/vllm-openai@sha256:REPLACE_WITH_64_HEX_DIGEST",
+  "version_endpoint_expected": "0.34.0",
+  "note": "Resolve the digest on the deployment host with ../ops/lock_inference_image.sh and record it in the API environment before model freeze."
+}

@@ -1,0 +1,31 @@
+LLM QoE Lab consolidated validation
+UTC: 20261125T063043Z
+Project: /mnt/c/Users/ns448/Downloads/LLM_QoE_Lab_Wednesday_Preparation/llm_qoe_lab
+Host: Linux LAPTOP-ODKNNFBR 6.6.114.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Mon Dec  1 20:46:23 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+This script does not change the host's production network qdiscs.
+\n===== SKIP: React production build =====\nNode.js and npm are required.
+\n===== SKIP: Docker build/startup + PostgreSQL/Redis integration =====\nDocker Engine and the Docker Compose plugin must be installed and accessible to this user.
+\n===== Live Groq/Gemini inference (configured providers) =====
+FAIL Groq live inference: HTTP Error 403: Forbidden
+FAIL Gemini live inference: HTTP Error 503: Service Unavailable
+Both Groq and Gemini must be configured and return a completion for this check to pass.
+\n===== Actual NetEm packet shaping in isolated network namespace =====
+Applied isolated namespace qdisc:
+qdisc netem 8005: root refcnt 17 limit 1000 delay 80ms  5ms loss 0.5%
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 90b 1p requeues 0
+Observed ping average RTT (ms): 101.340
+PASS: isolated NetEm delay observed; host production interfaces were untouched.
+\n===== Physical interface packet capture (metadata-limited) =====
+Capturing metadata only on eth0 for host 1.1.1.1.
+Metadata CSV: /mnt/c/Users/ns448/Downloads/LLM_QoE_Lab_Wednesday_Preparation/llm_qoe_lab/test-reports/physical-capture-20261125T063043Z.csv
+Captured packet records: 10
+\n================ FINAL RESULTS ================
+SKIP | React production build
+SKIP | Docker build/startup + PostgreSQL/Redis integration
+FAIL | Live Groq/Gemini inference (configured providers)
+PASS | Actual NetEm packet shaping in isolated network namespace
+PASS | Physical interface packet capture (metadata-limited)
+\nPASS=2 FAIL=1 SKIP=2
+Report: /mnt/c/Users/ns448/Downloads/LLM_QoE_Lab_Wednesday_Preparation/llm_qoe_lab/test-reports/full-validation-20261125T063043Z.txt
+RESULT: NOT READY — fix failed checks and rerun.

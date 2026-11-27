@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: LLM QoE Lab
+    orgId: 1
+    folder: LLM QoE Lab
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards
